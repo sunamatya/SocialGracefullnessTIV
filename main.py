@@ -63,13 +63,21 @@ class Main():
         self.trial()
 
     def trial(self):
+        frequency = 3
+        counter = 0
 
         while self.running:
 
             # Update model here
             if not self.paused:
-                self.car_1.update(self.frame)
-                self.car_2.update(self.frame)
+                if counter% frequency == 0 or counter <= 2: # skipping first three
+                    skip_update = False
+
+                else:
+                    skip_update = True
+                self.car_1.update(self.frame, skip_update)
+                self.car_2.update(self.frame, skip_update)
+                counter+= 1
 
                 # calculate gracefulness
                 grace = []
@@ -170,9 +178,15 @@ class Main():
             car_1_theta = np.append(car_1_theta, np.expand_dims(self.sim_data.car2_theta_probability[t], axis=0), axis=0)
             car_2_theta = np.append(car_2_theta, np.expand_dims(self.sim_data.car1_theta_probability[t], axis=0), axis=0)
         plt.subplot(2, 1, 1)
-        plt.plot(range(1,self.frame+1), car_1_theta[:,0], range(1,self.frame+1), car_1_theta[:,1])
+        plt.plot(range(1,self.frame+1), car_1_theta[:,0], label = "$\hat{\Theta}_M$= 1" )
+        plt.plot(range(1,self.frame+1), car_1_theta[:,1], label = "$\hat{\Theta}_M$= 10^3")
+        plt.ylabel("$p(\hat{\Theta}_M)$")
+        plt.legend()
         plt.subplot(2, 1, 2)
-        plt.plot(range(1,self.frame+1), car_2_theta[:,0], range(1,self.frame+1), car_2_theta[:,1])
+        plt.plot(range(1,self.frame+1), car_2_theta[:,0], label = "$\hat{\Theta}_H$= 1" )
+        plt.plot(range(1,self.frame+1), car_2_theta[:,1], label = "$\hat{\Theta}_H$= 10^3" )
+        plt.ylabel("$p(\hat{\Theta}_H)$")
+        plt.legend()
         plt.show()
 
 if __name__ == "__main__":

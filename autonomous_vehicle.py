@@ -47,6 +47,8 @@ class AutonomousVehicle:
         self.trajectory = []
         self.planned_actions_set = []
         self.planned_trajectory_set = []
+        #added new things here for different frequency #Sunny
+        self.temp_action_set = []
         self.track_back = 0
 
         # Initialize others space
@@ -76,7 +78,7 @@ class AutonomousVehicle:
     def get_state(self, delay):
         return self.states[-1 * delay]
 
-    def update(self, frame):
+    def update(self, frame, skip_update= False):
         who = self.who
         other = self.other_car
         self.frame = frame
@@ -89,32 +91,37 @@ class AutonomousVehicle:
             self.states_o = np.array(other.states[:-1])  # get other's states
             self.actions_set_o = np.array(other.actions_set[:-1])  # get other's actions
 
-        # if len(self.states_o) > C.TRACK_BACK and len(self.states) > C.TRACK_BACK:
-        self.track_back = min(C.TRACK_BACK, len(self.states))
-        theta_other, theta_self, predicted_trajectory_other, predicted_others_prediction_of_my_trajectory, \
-        wanted_others_prediction_of_my_trajectory, other_wanted_trajectory, inference_probability, theta_probability = \
-            self.get_predicted_intent_of_other()
-        self.wanted_trajectory_self = wanted_others_prediction_of_my_trajectory
-        self.wanted_trajectory_other = other_wanted_trajectory
-        self.wanted_states_other = [self.dynamic(other_wanted_trajectory[i]) for i in range(len(other_wanted_trajectory))]
-        self.inference_probability = inference_probability
-        self.inference_probability_proactive = inference_probability
-        self.theta_probability = theta_probability
+        if not skip_update:
 
-        self.predicted_theta_other = theta_other
-        self.predicted_theta_self = theta_self
-        self.predicted_trajectory_other = predicted_trajectory_other
-        self.predicted_others_prediction_of_my_trajectory = predicted_others_prediction_of_my_trajectory
-        self.predicted_actions_other = [self.dynamic(predicted_trajectory_other[i])
-                                        for i in range(len(predicted_trajectory_other))]
-        self.predicted_others_prediction_of_my_actions = [
-            self.dynamic(predicted_others_prediction_of_my_trajectory[i])
-            for i in range(len(predicted_others_prediction_of_my_trajectory))]
+            # if len(self.states_o) > C.TRACK_BACK and len(self.states) > C.TRACK_BACK:
+            self.track_back = min(C.TRACK_BACK, len(self.states))
+            theta_other, theta_self, predicted_trajectory_other, predicted_others_prediction_of_my_trajectory, \
+            wanted_others_prediction_of_my_trajectory, other_wanted_trajectory, inference_probability, theta_probability = \
+                self.get_predicted_intent_of_other()
+            self.wanted_trajectory_self = wanted_others_prediction_of_my_trajectory
+            self.wanted_trajectory_other = other_wanted_trajectory
+            self.wanted_states_other = [self.dynamic(other_wanted_trajectory[i]) for i in range(len(other_wanted_trajectory))]
+            self.inference_probability = inference_probability
+            self.inference_probability_proactive = inference_probability
+            self.theta_probability = theta_probability
 
-        ########## Calculate machine actions here ###########
-        planned_trajectory, planned_actions = self.get_actions()
+            self.predicted_theta_other = theta_other
+            self.predicted_theta_self = theta_self
+            self.predicted_trajectory_other = predicted_trajectory_other
+            self.predicted_others_prediction_of_my_trajectory = predicted_others_prediction_of_my_trajectory
+            self.predicted_actions_other = [self.dynamic(predicted_trajectory_other[i])
+                                            for i in range(len(predicted_trajectory_other))]
+            self.predicted_others_prediction_of_my_actions = [
+                self.dynamic(predicted_others_prediction_of_my_trajectory[i])
+                for i in range(len(predicted_others_prediction_of_my_trajectory))]
 
-        planned_actions[np.where(np.abs(planned_actions) < 1e-6)] = 0.  # remove numerical errors
+            ########## Calculate machine actions here ###########
+            planned_trajectory, planned_actions = self.get_actions()
+
+            planned_actions[np.where(np.abs(planned_actions) < 1e-6)] = 0.  # remove numerical errors
+        else:
+            planned_trajectory= self.planned_trajectory_set[-1]
+            planned_actions= self.temp_action_set[1:]
 
         # self.states.append(np.add(self.states[-1], (planned_actions[self.track_back][0],
         #                                             planned_actions[self.track_back][1])))
@@ -122,6 +129,8 @@ class AutonomousVehicle:
         self.actions_set.append(self.states[-1]-self.states[-2])
         self.planned_actions_set = self.dynamic(planned_trajectory)
         self.planned_trajectory_set.append(planned_trajectory)
+
+        self.temp_action_set = planned_actions
 
     def get_actions(self):
 
