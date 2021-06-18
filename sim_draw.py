@@ -3,6 +3,8 @@ import pygame as pg
 import pygame.gfxdraw
 import numpy as np
 import math
+import matplotlib.pyplot as plt
+import numpy as np
 import os
 
 BLACK       = (  0,  0,  0)
@@ -43,6 +45,8 @@ class Sim_Draw():
         self.car1_image = pg.transform.rotate(pg.image.load(asset_loc + "blue_car_sized.png"), self.P.CAR_1.ORIENTATION)
         self.coordinates_image = pg.image.load(asset_loc + "coordinates.png")
         self.origin = np.array([-1.0, 1.0])
+
+        self.dist=[]
 
     def draw_frame(self, sim_data, car_num_display, frame):
 
@@ -292,6 +296,8 @@ class Sim_Draw():
         pg.display.flip()
         pg.display.update()
 
+        #self.calc_dist(self, sim_data)
+
     def draw_axes(self):
         rel_coor_scale = C.COORDINATE_SCALE * C.ZOOM
         rel_screen_width = self.P.SCREEN_WIDTH / C.ZOOM
@@ -362,6 +368,52 @@ class Sim_Draw():
             # pg.draw.line(self.screen, BLACK, (bounds[0], 0), (bounds[0], self.P.SCREEN_HEIGHT * C.COORDINATE_SCALE), 2)
             pg.draw.line(self.screen, LIGHT_LIGHT_GREY, ((bounds[1] + bounds[0])/2, 0),
                          ((bounds[1] + bounds[0])/2, self.P.SCREEN_HEIGHT * C.COORDINATE_SCALE), bounds[1] - bounds[0])
+
+
+
+    # def draw_dist(self, sim_data):
+    #     # TODO: implement plotting of distance between cars over time
+    #     # pyplot.plot(self.dist)
+    #     # pyplot.plot(self.sim.agents[0].action)
+    #     fig1, (ax1, ax2, ax3) = pyplot.subplots(3) #3 rows
+    #     fig1.suptitle('Euclidean distance and Agent Actions')
+    #     ax1.plot(self.dist, label='car dist')
+    #     ax1.legend()
+    #     ax1.set(xlabel='time', ylabel='distance')
+    #
+    #     #fig1, (ax2) = pyplot.subplots(1)
+    #     #fig1.suptitle('Actions of H at each time')
+    #     ax2.plot(self.sim_data.car_1.states, label='car 1 M')
+    #     ax2.plot(self.sim_data.car_2.states, label='car 2 H', linestyle='--')
+    #     ax2.set_ylim([-10, 10])
+    #     ax2.set_yticks([-8, -4, 0, 4, 8])
+    #     ax2.legend()
+    #     ax2.set(xlabel='time', ylabel='states')
+    #
+    #     #fig1, (ax3) = pyplot.subplots(1)
+    #     #fig1.suptitle('Actions of M at each time')
+    #     ax3.plot(self.sim_data.car_2.action, label='actual')
+    #     ax3.plot(self.sim_data.agents[1].predicted_actions_self, label='predicted', linestyle='--')
+    #     ax3.set_ylim([-10, 10])
+    #     ax3.set_yticks([-8, -4, 0, 4, 8])
+    #     ax3.legend()
+    #     ax3.set(xlabel='time', ylabel='M actions')
+    #     # pyplot.ylabel("distance")
+    #     # pyplot.xlabel("time")
+    #
+    #     plt.show()
+    #
+    # def calc_dist(self, sim_data):
+    #     # past_state_h = self.sim.agents[0].state[-1]
+    #     # past_state_m = self.sim.agents[1].state[-1]
+    #     # past_state_h = self.sim_data.car1_states[-1]
+    #     # past_state_m = self.sim_data.car2_states[-1]
+    #     past_state_h = sim_data.car_1.states[-1]
+    #     past_state_m = sim_data.car_2.states[-1]
+    #     dist_h = past_state_h[1]
+    #     dist_m = past_state_m[0]
+    #     dist = np.sqrt(dist_h * dist_h + dist_m * dist_m)
+    #     self.dist.append(dist)
 
     def c2p(self, coordinates):
         x = C.COORDINATE_SCALE * (coordinates[1] - self.origin[1] + self.P.SCREEN_WIDTH / 2)

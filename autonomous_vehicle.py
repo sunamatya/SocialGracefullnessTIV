@@ -19,7 +19,7 @@ class AutonomousVehicle:
             X-Position
             Y-Position
     """
-    def __init__(self, scenario_parameters, car_parameters_self, loss_style, who):
+    def __init__(self, scenario_parameters, car_parameters_self, loss_style, who, inference_type):
 
         self.P = scenario_parameters
         self.P_CAR = car_parameters_self
@@ -74,6 +74,9 @@ class AutonomousVehicle:
         self.inference_probability_proactive = [] # for proactive and socially aware actions
         self.theta_probability = np.ones(C.THETA_SET.shape)/C.THETA_SET.size
         self.social_gracefulness = []  # collect difference between action and what other wants
+
+        #inference style
+        self.inference_style = inference_type
 
     def get_state(self, delay):
         return self.states[-1 * delay]
@@ -481,111 +484,220 @@ class AutonomousVehicle:
         trials_theta = C.THETA_SET
         inference_set = []  # T0poODO: need to generalize
         loss_value_set = []
-        for theta_self in trials_theta:
-        # for theta_self in [s.intent]:
-            if s.who == 1:
-                theta_self = s.intent
-            for theta_other in trials_theta_other:
-                # for theta_other in [1.]:
-                trajectory_self, trajectory_other, my_loss_all, other_loss_all = self.equilibrium(theta_self,
-                                                                                                  theta_other, s,
-                                                                                                  s.other_car)
 
-                # my_trajectory = [trajectory_self[i] for i in
-                #                  np.where(other_loss_all == np.min(other_loss_all))[0]]  # I believe others move fast
-                # other_trajectory = [trajectory_other[i] for i in
-                #                     np.where(my_loss_all == np.min(my_loss_all))[0]]  # others believe I move fast
-                my_trajectory = trajectory_self
-                other_trajectory = trajectory_other
-                # other_trajectory_conservative = \
-                #     [trajectory_other[i] for i in
-                #      np.where(other_loss_all == np.min(other_loss_all))[0]]  # others move fast
+        if s.inference_style == "empathetic" :
+            for theta_self in trials_theta:
+            # for theta_self in [s.intent]:
+                if s.who == 1:
+                    theta_self = s.intent
+                for theta_other in trials_theta_other:
+                    # for theta_other in [1.]:
+                    trajectory_self, trajectory_other, my_loss_all, other_loss_all = self.equilibrium(theta_self,
+                                                                                                      theta_other, s,
+                                                                                                      s.other_car)
 
-                trajectory_self_wanted_other = []
-                other_trajectory_wanted = []
+                    # my_trajectory = [trajectory_self[i] for i in
+                    #                  np.where(other_loss_all == np.min(other_loss_all))[0]]  # I believe others move fast
+                    # other_trajectory = [trajectory_other[i] for i in
+                    #                     np.where(my_loss_all == np.min(my_loss_all))[0]]  # others believe I move fast
+                    my_trajectory = trajectory_self
+                    other_trajectory = trajectory_other
+                    # other_trajectory_conservative = \
+                    #     [trajectory_other[i] for i in
+                    #      np.where(other_loss_all == np.min(other_loss_all))[0]]  # others move fast
 
-                if trajectory_self is not []:
-                    action_self = [self.dynamic(my_trajectory[i])
-                                   for i in range(len(my_trajectory))]
-                    action_other = [self.dynamic(other_trajectory[i])
-                                    for i in range(len(other_trajectory))]
-                    # print '*********'
-                    # print action_other
-                    # print action_self
-                    # print "&&&&&&&&&"
-                    if self.frame == 0:
-                        if self.who == 1:
-                            fun_self = [np.linalg.norm(np.sum((action_self[i][0] - s.states[-1]) - s.actions_set[-1]) - self.P_CAR.ABILITY * my_trajectory[i][0])
-                                        for i in range(len(my_trajectory))]
-                            fun_other = [np.linalg.norm(np.sum((action_other[i][0] - s.states_o[-1]) - s.actions_set_o[-1]) + self.P_CAR.ABILITY_O * other_trajectory[i][0])
-                                         for i in range(len(other_trajectory))]
+                    trajectory_self_wanted_other = []
+                    other_trajectory_wanted = []
+
+                    if trajectory_self is not []:
+                        action_self = [self.dynamic(my_trajectory[i])
+                                       for i in range(len(my_trajectory))]
+                        action_other = [self.dynamic(other_trajectory[i])
+                                        for i in range(len(other_trajectory))]
+                        # print '*********'
+                        # print action_other
+                        # print action_self
+                        # print "&&&&&&&&&"
+                        if self.frame == 0:
+                            if self.who == 1:
+                                fun_self = [np.linalg.norm(np.sum((action_self[i][0] - s.states[-1]) - s.actions_set[-1]) - self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum((action_other[i][0] - s.states_o[-1]) - s.actions_set_o[-1]) + self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                            else:
+                                fun_self = [np.linalg.norm(np.sum((action_self[i][0] - s.states[-1]) - s.actions_set[-1]) + self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum((action_other[i][0] - s.states_o[-1]) - s.actions_set_o[-1]) - self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
                         else:
-                            fun_self = [np.linalg.norm(np.sum((action_self[i][0] - s.states[-1]) - s.actions_set[-1]) + self.P_CAR.ABILITY * my_trajectory[i][0])
-                                        for i in range(len(my_trajectory))]
-                            fun_other = [np.linalg.norm(np.sum((action_other[i][0] - s.states_o[-1]) - s.actions_set_o[-1]) - self.P_CAR.ABILITY_O * other_trajectory[i][0])
-                                         for i in range(len(other_trajectory))]
-                    else:
-                        if self.who == 1:
-                            fun_self = [np.linalg.norm(np.sum(s.actions_set[-1] - s.actions_set[-2]) - self.P_CAR.ABILITY * my_trajectory[i][0])
-                                        for i in range(len(my_trajectory))]
-                            fun_other = [np.linalg.norm(np.sum(s.actions_set_o[-1] - s.actions_set_o[-2]) + self.P_CAR.ABILITY_O * other_trajectory[i][0])
-                                         for i in range(len(other_trajectory))]
+                            if self.who == 1:
+                                fun_self = [np.linalg.norm(np.sum(s.actions_set[-1] - s.actions_set[-2]) - self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum(s.actions_set_o[-1] - s.actions_set_o[-2]) + self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                            else:
+                                fun_self = [np.linalg.norm(np.sum(s.actions_set[-1] - s.actions_set[-2]) + self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum(s.actions_set_o[-1] - s.actions_set_o[-2]) - self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                        # print fun_self
+                        # print fun_other
+                        if len(fun_other) != 0:
+                            fun = min(fun_other)
                         else:
-                            fun_self = [np.linalg.norm(np.sum(s.actions_set[-1] - s.actions_set[-2]) + self.P_CAR.ABILITY * my_trajectory[i][0])
-                                        for i in range(len(my_trajectory))]
-                            fun_other = [np.linalg.norm(np.sum(s.actions_set_o[-1] - s.actions_set_o[-2]) - self.P_CAR.ABILITY_O * other_trajectory[i][0])
-                                         for i in range(len(other_trajectory))]
-                    # print fun_self
-                    # print fun_other
-                    if len(fun_other) != 0:
-                        fun = min(fun_other)
+                            break
+
+                        # what I think other want me to do if he wants to take the benefit
+                        trajectory_self_wanted_other = \
+                            [trajectory_self[i] for i in np.where(other_loss_all == np.min(other_loss_all))[0]]
+
+                        # what I want other to do
+                        other_trajectory_wanted = \
+                            [trajectory_other[i] for i in np.where(my_loss_all == np.min(my_loss_all))[0]]
+
+                        # what I think others expect me to do
+                        trajectory_self = np.atleast_2d(
+                            [my_trajectory[i] for i in np.where(fun_self == np.min(fun_self))[0]])
+
+                        # what I think others will do
+                        trajectory_other = np.atleast_2d(
+                            [other_trajectory[i] for i in np.where(fun_other == fun)[0]])
+                        # else:
+                        #     fun = 0
+                        #
+                        #     # what I think other want me to do if he wants to take the benefit
+                        #     trajectory_self_wanted_other = \
+                        #         [trajectory_self[i] for i in np.where(other_loss_all == np.min(other_loss_all))[0]]
+                        #
+                        #     # what I want other to do
+                        #     other_trajectory_wanted = \
+                        #         [trajectory_other[i] for i in np.where(my_loss_all == np.min(my_loss_all))[0]]
+                        #
+                        #     # what I think others expect me to do
+                        #     trajectory_self = np.atleast_2d(
+                        #         [my_trajectory[i] for i in np.where(fun_self == np.min(fun_self))[0]])
+                        #
+                        #     # what I think others will do
+                        #     trajectory_other = np.atleast_2d(
+                        #         [other_trajectory[i] for i in np.where(fun_other == fun)[0]])
                     else:
-                        break
+                        fun = 1e32
 
-                    # what I think other want me to do if he wants to take the benefit
-                    trajectory_self_wanted_other = \
-                        [trajectory_self[i] for i in np.where(other_loss_all == np.min(other_loss_all))[0]]
+                    inference_set.append([theta_self,
+                                          theta_other,
+                                          trajectory_other,
+                                          trajectory_self,
+                                          trajectory_self_wanted_other,
+                                          other_trajectory_wanted,
+                                          1./len(trajectory_other)*len(trajectory_self_wanted_other)*len(other_trajectory_wanted)])
+                    loss_value_set.append(round(fun*1e12)/1e12)
 
-                    # what I want other to do
-                    other_trajectory_wanted = \
-                        [trajectory_other[i] for i in np.where(my_loss_all == np.min(my_loss_all))[0]]
+        else:
+            #for theta_self in trials_theta:
+            for theta_self in [s.intent]:
+                if s.who == 1:
+                    theta_self = s.intent
+                #for theta_other in trials_theta_other:
+                for theta_other in [1.]:
+                    trajectory_self, trajectory_other, my_loss_all, other_loss_all = self.equilibrium(theta_self,
+                                                                                                      theta_other, s,
+                                                                                                      s.other_car)
 
-                    # what I think others expect me to do
-                    trajectory_self = np.atleast_2d(
-                        [my_trajectory[i] for i in np.where(fun_self == np.min(fun_self))[0]])
+                    # my_trajectory = [trajectory_self[i] for i in
+                    #                  np.where(other_loss_all == np.min(other_loss_all))[0]]  # I believe others move fast
+                    # other_trajectory = [trajectory_other[i] for i in
+                    #                     np.where(my_loss_all == np.min(my_loss_all))[0]]  # others believe I move fast
+                    my_trajectory = trajectory_self
+                    other_trajectory = trajectory_other
+                    # other_trajectory_conservative = \
+                    #     [trajectory_other[i] for i in
+                    #      np.where(other_loss_all == np.min(other_loss_all))[0]]  # others move fast
 
-                    # what I think others will do
-                    trajectory_other = np.atleast_2d(
-                        [other_trajectory[i] for i in np.where(fun_other == fun)[0]])
-                    # else:
-                    #     fun = 0
-                    #
-                    #     # what I think other want me to do if he wants to take the benefit
-                    #     trajectory_self_wanted_other = \
-                    #         [trajectory_self[i] for i in np.where(other_loss_all == np.min(other_loss_all))[0]]
-                    #
-                    #     # what I want other to do
-                    #     other_trajectory_wanted = \
-                    #         [trajectory_other[i] for i in np.where(my_loss_all == np.min(my_loss_all))[0]]
-                    #
-                    #     # what I think others expect me to do
-                    #     trajectory_self = np.atleast_2d(
-                    #         [my_trajectory[i] for i in np.where(fun_self == np.min(fun_self))[0]])
-                    #
-                    #     # what I think others will do
-                    #     trajectory_other = np.atleast_2d(
-                    #         [other_trajectory[i] for i in np.where(fun_other == fun)[0]])
-                else:
-                    fun = 1e32
+                    trajectory_self_wanted_other = []
+                    other_trajectory_wanted = []
 
-                inference_set.append([theta_self,
-                                      theta_other,
-                                      trajectory_other,
-                                      trajectory_self,
-                                      trajectory_self_wanted_other,
-                                      other_trajectory_wanted,
-                                      1./len(trajectory_other)*len(trajectory_self_wanted_other)*len(other_trajectory_wanted)])
-                loss_value_set.append(round(fun*1e12)/1e12)
+                    if trajectory_self is not []:
+                        action_self = [self.dynamic(my_trajectory[i])
+                                       for i in range(len(my_trajectory))]
+                        action_other = [self.dynamic(other_trajectory[i])
+                                        for i in range(len(other_trajectory))]
+                        # print '*********'
+                        # print action_other
+                        # print action_self
+                        # print "&&&&&&&&&"
+                        if self.frame == 0:
+                            if self.who == 1:
+                                fun_self = [np.linalg.norm(np.sum((action_self[i][0] - s.states[-1]) - s.actions_set[-1]) - self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum((action_other[i][0] - s.states_o[-1]) - s.actions_set_o[-1]) + self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                            else:
+                                fun_self = [np.linalg.norm(np.sum((action_self[i][0] - s.states[-1]) - s.actions_set[-1]) + self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum((action_other[i][0] - s.states_o[-1]) - s.actions_set_o[-1]) - self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                        else:
+                            if self.who == 1:
+                                fun_self = [np.linalg.norm(np.sum(s.actions_set[-1] - s.actions_set[-2]) - self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum(s.actions_set_o[-1] - s.actions_set_o[-2]) + self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                            else:
+                                fun_self = [np.linalg.norm(np.sum(s.actions_set[-1] - s.actions_set[-2]) + self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum(s.actions_set_o[-1] - s.actions_set_o[-2]) - self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                        # print fun_self
+                        # print fun_other
+                        if len(fun_other) != 0:
+                            fun = min(fun_other)
+                        else:
+                            break
+
+                        # what I think other want me to do if he wants to take the benefit
+                        trajectory_self_wanted_other = \
+                            [trajectory_self[i] for i in np.where(other_loss_all == np.min(other_loss_all))[0]]
+
+                        # what I want other to do
+                        other_trajectory_wanted = \
+                            [trajectory_other[i] for i in np.where(my_loss_all == np.min(my_loss_all))[0]]
+
+                        # what I think others expect me to do
+                        trajectory_self = np.atleast_2d(
+                            [my_trajectory[i] for i in np.where(fun_self == np.min(fun_self))[0]])
+
+                        # what I think others will do
+                        trajectory_other = np.atleast_2d(
+                            [other_trajectory[i] for i in np.where(fun_other == fun)[0]])
+                        # else:
+                        #     fun = 0
+                        #
+                        #     # what I think other want me to do if he wants to take the benefit
+                        #     trajectory_self_wanted_other = \
+                        #         [trajectory_self[i] for i in np.where(other_loss_all == np.min(other_loss_all))[0]]
+                        #
+                        #     # what I want other to do
+                        #     other_trajectory_wanted = \
+                        #         [trajectory_other[i] for i in np.where(my_loss_all == np.min(my_loss_all))[0]]
+                        #
+                        #     # what I think others expect me to do
+                        #     trajectory_self = np.atleast_2d(
+                        #         [my_trajectory[i] for i in np.where(fun_self == np.min(fun_self))[0]])
+                        #
+                        #     # what I think others will do
+                        #     trajectory_other = np.atleast_2d(
+                        #         [other_trajectory[i] for i in np.where(fun_other == fun)[0]])
+                    else:
+                        fun = 1e32
+
+                    inference_set.append([theta_self,
+                                          theta_other,
+                                          trajectory_other,
+                                          trajectory_self,
+                                          trajectory_self_wanted_other,
+                                          other_trajectory_wanted,
+                                          1./len(trajectory_other)*len(trajectory_self_wanted_other)*len(other_trajectory_wanted)])
+                    loss_value_set.append(round(fun*1e12)/1e12)
 
         candidate = np.where(loss_value_set == np.min(loss_value_set))[0]
         theta_self_out = []

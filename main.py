@@ -6,6 +6,7 @@ import pickle
 import os
 import pygame as pg
 import datetime
+import timeit
 
 class Main():
 
@@ -32,11 +33,13 @@ class Main():
         self.car_1 = AutonomousVehicle(scenario_parameters=self.P,
                                        car_parameters_self=self.P.CAR_1,
                                        loss_style="reactive",
-                                       who=1)  #M
+                                       who=1,
+                                       inference_type="empathetic")  #M
         self.car_2 = AutonomousVehicle(scenario_parameters=self.P,
                                        car_parameters_self=self.P.CAR_2,
                                        loss_style="reactive",
-                                       who=0)  #H
+                                       who=0,
+                                       inference_type="empathetic")  #H
 
         # Assign 'other' cars
         self.car_1.other_car = self.car_2
@@ -50,21 +53,33 @@ class Main():
             self.sim_draw = Sim_Draw(self.P, C.ASSET_LOCATION)
             pg.display.flip()
             # self.capture = True if input("Capture video (y/n): ") else False
-            self.capture = True
+            self.capture = False
+            self.output_data_pickle = False
             output_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-            os.makedirs("./sim_outputs/%s" % output_name)
-            self.sim_out = open("./sim_outputs/%s/output.pkl" % output_name, "wb")
+            if self.output_data_pickle or self.capture:
+                os.makedirs("./sim_outputs/%s" % output_name)
+            if self.output_data_pickle:
+                self.sim_out = open("./sim_outputs/%s/output.pkl" % output_name, "wb")
 
             if self.capture:
                 self.output_dir = "./sim_outputs/%s/video/" % output_name
                 os.makedirs(self.output_dir)
 
         # Go
+
+        #figures printing and saving video
+        self.show_prob_theta = True
+        self.show_states = True
+        self.show_action = True
+
         self.trial()
 
     def trial(self):
         frequency = 3
         counter = 0
+
+        #timing the processing time
+        start_timer = timeit.default_timer()
 
         while self.running:
 
@@ -153,8 +168,12 @@ class Main():
                 self.frame += 1
 
         pg.quit()
-        # pickle.dump(self.sim_data, self.sim_out, pickle.HIGHEST_PROTOCOL)
-        print('Output pickled and dumped.')
+        stop_timer = timeit.default_timer()
+        print('Time: ', stop_timer - start_timer)
+
+        if self.output_data_pickle:
+            pickle.dump(self.sim_data, self.sim_out, pickle.HIGHEST_PROTOCOL)
+            print('Output pickled and dumped.')
         if self.capture:
             # Compile to video
             # os.system("ffmpeg -f image2 -framerate 1 -i %simg%%03d.jpeg %s/output_video.mp4 " % (self.output_dir, self.output_dir))
@@ -172,22 +191,57 @@ class Main():
 
         import matplotlib.pyplot as plt
         import numpy as np
-        car_1_theta = np.empty((0, 2))
-        car_2_theta = np.empty((0, 2))
-        for t in range(self.frame):
-            car_1_theta = np.append(car_1_theta, np.expand_dims(self.sim_data.car2_theta_probability[t], axis=0), axis=0)
-            car_2_theta = np.append(car_2_theta, np.expand_dims(self.sim_data.car1_theta_probability[t], axis=0), axis=0)
-        plt.subplot(2, 1, 1)
-        plt.plot(range(1,self.frame+1), car_1_theta[:,0], label = "$\hat{\Theta}_M$= 1" )
-        plt.plot(range(1,self.frame+1), car_1_theta[:,1], label = "$\hat{\Theta}_M$= 10^3")
-        plt.ylabel("$p(\hat{\Theta}_M)$")
-        plt.legend()
-        plt.subplot(2, 1, 2)
-        plt.plot(range(1,self.frame+1), car_2_theta[:,0], label = "$\hat{\Theta}_H$= 1" )
-        plt.plot(range(1,self.frame+1), car_2_theta[:,1], label = "$\hat{\Theta}_H$= 10^3" )
-        plt.ylabel("$p(\hat{\Theta}_H)$")
-        plt.legend()
-        plt.show()
+        if self.show_prob_theta:
+            car_1_theta = np.empty((0, 2))
+            car_2_theta = np.empty((0, 2))
+            for t in range(self.frame):
+                car_1_theta = np.append(car_1_theta, np.expand_dims(self.sim_data.car2_theta_probability[t], axis=0), axis=0)
+                car_2_theta = np.append(car_2_theta, np.expand_dims(self.sim_data.car1_theta_probability[t], axis=0), axis=0)
+
+            plt.subplot(2, 1, 1)
+            plt.title("Probability graph of the vehicle")
+            plt.plot(range(1,self.frame+1), car_1_theta[:,0], label = "$\hat{\Theta}_M$= 1" )
+            plt.plot(range(1,self.frame+1), car_1_theta[:,1], label = "$\hat{\Theta}_M$= 10^3")
+            plt.ylabel("$p(\hat{\Theta}_M)$")
+            plt.xlabel("frame")
+            plt.legend()
+            plt.subplot(2, 1, 2)
+            plt.plot(range(1,self.frame+1), car_2_theta[:,0], label = "$\hat{\Theta}_H$= 1" )
+            plt.plot(range(1,self.frame+1), car_2_theta[:,1], label = "$\hat{\Theta}_H$= 10^3" )
+            plt.ylabel("$p(\hat{\Theta}_H)$")
+            plt.xlabel("frame")
+            plt.legend()
+
+            plt.show()
+            #plt.savefig('saved_figure.png')
+        if self.show_states:
+            car_1_state = np.empty((0, 2))
+            car_2_state = np.empty((0, 2))
+            for t in range(self.frame):
+                car_1_state = np.append(car_1_state, np.expand_dims(self.sim_data.car1_states[t], axis=0), axis=0)
+                car_2_state = np.append(car_2_state, np.expand_dims(self.sim_data.car2_states[t], axis=0), axis=0)
+            dist = np.sqrt(car_1_state[:,0] *car_1_state[:,0] + car_2_state[:,1] * car_2_state[:,1])
+
+            # plt.plot(range(1,self.frame+1), car_1_state[:,0], label='car 1 M')
+            # plt.plot(range(1,self.frame+1), car_2_state[:,1], label='car 2 H', linestyle='--')
+            # plt.legend()
+
+            fig1, (ax1, ax2, ax3) = plt.subplots(3) #3 rows
+            fig1.suptitle('Euclidean distance and Agent States')
+            ax1.plot(dist, label='car dist')
+            ax1.legend()
+            ax1.set(xlabel='time', ylabel='distance')
+
+            ax2.plot(range(1,self.frame+1), car_1_state[:,0], label='car 1 M')
+            ax2.legend()
+            ax2.set(xlabel='time', ylabel='states')
+
+            ax3.plot(range(1,self.frame+1), car_2_state[:,1], label='car 2 H')
+            ax3.legend()
+            ax3.set(xlabel='time', ylabel='states')
+            plt.show()
+
+
 
 if __name__ == "__main__":
     Main()

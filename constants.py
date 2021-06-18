@@ -52,6 +52,7 @@ class CONSTANTS:
 
     EXPTHETA = 1
     EXPCOLLISION = 3
+    #EXPCOLLISION = 5
 
     #np.random.seed(1)
     THETA_SET = np.array([1, 1e3]) #TODO: CHANGE THETA_SET
