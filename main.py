@@ -8,6 +8,10 @@ import pygame as pg
 import datetime
 import timeit
 
+
+#import resource
+import loss_functions
+
 class Main():
 
     def __init__(self):
@@ -71,28 +75,53 @@ class Main():
         self.show_prob_theta = True
         self.show_states = True
         self.show_action = True
+        self.show_loss = True
+        self.show_predicted_states_others = True
 
         self.trial()
 
     def trial(self):
-        frequency = 3
+        frequency = C.FREQUENCY # frequency every 1/3rd of the time
         counter = 0
 
-        #timing the processing time
+        #timing the processing time and resource
         start_timer = timeit.default_timer()
+
 
         while self.running:
 
             # Update model here
             if not self.paused:
-                if counter% frequency == 0 or counter <= 2: # skipping first three
-                    skip_update = False
+                # if counter% frequency == 0 or counter < 1: # skipping first three
+                #     skip_update = False
+                #     print("counter val =", counter)
+                #
+                # else:
+                #     skip_update = True
+                # data_count = counter% frequency
 
-                else:
-                    skip_update = True
-                self.car_1.update(self.frame, skip_update)
-                self.car_2.update(self.frame, skip_update)
+
+                #threhold based calculation
+                #car_2.states(...)- car_1.predictedothers() > distance
+                #car 1 threshold
+                skip_update_car1 = False
+                skip_update_car2 = False
+                if counter > 0:
+                    skip_update_car1 = True
+                    skip_update_car2 = True
+                    if np.abs(self.car_1.predicted_actions_other[0][0][1] - self.car_2.states[-1][1]) > 0.001:
+                        skip_update_car1 = False
+                        print(skip_update_car1)
+
+                    #car 2 threshold
+                    if np.abs(self.car_2.predicted_actions_other[0][0][0] - self.car_1.states[-1][0])> 0.001:
+                        skip_update_car2 = False
+                        print(skip_update_car2)
+
+                self.car_1.update(self.frame, skip_update_car1)
+                self.car_2.update(self.frame, skip_update_car2)
                 counter+= 1
+                print("counter" , counter )
 
                 # calculate gracefulness
                 grace = []
@@ -100,6 +129,27 @@ class Main():
                     wanted_actions_other = self.car_2.dynamic(wanted_trajectory_other)
                     grace.append(1000*(self.car_1.states[-1][0] - wanted_actions_other[0][0]) ** 2)
                 self.car_1.social_gracefulness.append(sum(grace*self.car_2.inference_probability))
+
+                #calculate instant loss
+                import numpy as np
+                # intent_loss_car_1 = self.car_1.intent * np.exp(C.EXPTHETA * (- self.car_1.temp_action_set[C.ACTION_TIMESTEPS-1][0] + 0.6))
+                # intent_loss_car_2 = self.car_2.intent * np.exp(C.EXPTHETA * (- self.car_2.temp_action_set[C.ACTION_TIMESTEPS-1][0] + 0.6))
+                # D =  np.sqrt(np.sum((np.array(self.car_1.states) - np.array(self.car_2.states))**2)) + 1e-12 # np.sum((my_pos - other_pos)**2, axis=1)
+                # collision_loss = np.exp(C.EXPCOLLISION * (-D + C.CAR_LENGTH ** 2 * 1.5))
+                # plannedloss_car1 = intent_loss_car_1+ collision_loss
+                # plannedloss_car2 = intent_loss_car_2+ collision_loss
+
+                plannedloss_car1 = 0
+                plannedloss_car2 = 0
+
+                #print(plannedloss_car1)
+                # print("trajectory other", self.car_1.predicted_trajectory_other)
+                # print("inference probability", self.car_1.inference_probability)
+                #
+                # print("predicted trajectory of self", self.car_1.wanted_trajectory_self)
+
+
+
 
                 # Update data
                 self.sim_data.append_car1(states=self.car_1.states,
@@ -117,7 +167,8 @@ class Main():
                                           inference_probability=self.car_1.inference_probability,
                                           inference_probability_proactive=self.car_1.inference_probability_proactive,
                                           theta_probability=self.car_1.theta_probability,
-                                          social_gracefulness=self.car_1.social_gracefulness)
+                                          social_gracefulness=self.car_1.social_gracefulness,
+                                          planned_loss= plannedloss_car1)
 
                 self.sim_data.append_car2(states=self.car_2.states,
                                           actions=self.car_2.actions_set,
@@ -133,7 +184,8 @@ class Main():
                                           wanted_states_other=self.car_2.wanted_states_other,
                                           inference_probability=self.car_2.inference_probability,
                                           inference_probability_proactive=self.car_2.inference_probability_proactive,
-                                          theta_probability=self.car_2.theta_probability,)
+                                          theta_probability=self.car_2.theta_probability,
+                                          planned_loss=plannedloss_car2)
 
             if self.frame >= self.duration:
                 break
@@ -170,6 +222,8 @@ class Main():
         pg.quit()
         stop_timer = timeit.default_timer()
         print('Time: ', stop_timer - start_timer)
+        # memMb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0 / 1024.0 #maximum residential set size
+        # print(memMb)
 
         if self.output_data_pickle:
             pickle.dump(self.sim_data, self.sim_out, pickle.HIGHEST_PROTOCOL)
@@ -213,6 +267,10 @@ class Main():
             plt.legend()
 
             plt.show()
+            # for i in range(1,self.frame+1):
+            #     if car_2_theta[i,0] == 1:
+            #         print(i)
+            #         break
             #plt.savefig('saved_figure.png')
         if self.show_states:
             car_1_state = np.empty((0, 2))
@@ -239,6 +297,75 @@ class Main():
             ax3.plot(range(1,self.frame+1), car_2_state[:,1], label='car 2 H')
             ax3.legend()
             ax3.set(xlabel='time', ylabel='states')
+            plt.show()
+
+        if self.show_action:
+            car_1_action = np.empty((0, 2))
+            car_2_action = np.empty((0, 2))
+            car_1_action_predicted = np.empty((0, 2))
+            for t in range(self.frame):
+                car_1_action = np.append(car_1_action, (np.expand_dims(self.sim_data.car1_actions[t+1], axis=0) - np.expand_dims(self.sim_data.car1_actions[t], axis=0)), axis=0)
+                car_2_action = np.append(car_2_action, (np.expand_dims(self.sim_data.car2_actions[t+1], axis=0) - np.expand_dims(self.sim_data.car2_actions[t], axis=0)), axis=0)
+                # car_1_action = np.append(car_1_action, np.expand_dims(self.sim_data.car1_actions[t], axis=0), axis=0)
+                # car_2_action = np.append(car_2_action, np.expand_dims(self.sim_data.car2_actions[t], axis=0), axis=0)
+                # car_1_action_predicted = np.append(car_1_action_predicted, np.expand_dims(self.sim_data.car1_predicted_others_prediction_of_my_actions[t], axis=0), axis=0 )
+                # car_2_action_predicted = np.append(car_2_action_predicted, np.expand_dims(self.sim_data.car1_predicted_actions_other[t], axis=0), axis=0 )
+            #dist = np.sqrt(car_1_state[:,0] *car_1_state[:,0] + car_2_state[:,1] * car_2_state[:,1])
+
+            # plt.plot(range(1,self.frame+1), car_1_state[:,0], label='car 1 M')
+            # plt.plot(range(1,self.frame+1), car_2_state[:,1], label='car 2 H', linestyle='--')
+            # plt.legend()
+
+            fig1, (ax1, ax2) = plt.subplots(2) #3 rows
+            # fig1.suptitle('Euclidean distance and Agent States')
+            # ax1.plot(dist, label='car dist')
+            # ax1.legend()
+            # ax1.set(xlabel='time', ylabel='distance')
+
+            ax1.plot(range(1,self.frame+1), car_1_action[:,0], label='car 1 actual action')
+            #ax1.plot(range(1,self.frame+1), car_1_action_predicted[:,0], label='car 1 prediction of car 2 prediction of car 1')
+            ax1.legend()
+            ax1.set(xlabel='time', ylabel='action')
+
+            ax2.plot(range(1,self.frame+1), car_2_action[:,0], label='car 2 actual action')
+            #ax2.plot(range(1,self.frame+1), car_2_action_predicted[:,0], label='car 1 prediction of car 2 prediction of car 1')
+            ax2.legend()
+            ax2.set(xlabel='time', ylabel='action')
+            #plt.show()
+
+        if self.show_loss:
+            car_1_loss = np.empty((0, 1))
+            car_2_loss = np.empty((0, 1))
+
+            for t in range(self.frame):
+                #def calculate_instanteous_reactive_loss(self, theta_self, trajectory, trajectory_other, s_self, s_other,s, probability):
+                #car_1_instant = calculate_instanteous_reactive_loss(self.sim_data.car_1_theta, self.sim_data.car1_trajectory[t])
+                # car_2_instant = calculate_instanteous_reactive_loss()
+                car_1_loss = np.append(car_1_loss, self.sim_data.car1_planned_loss[t])
+                car_2_loss = np.append(car_2_loss, self.sim_data.car2_planned_loss[t])
+                # car_1_action_predicted = np.append(car_1_action_predicted, np.expand_dims(self.sim_data.car1_predicted_others_prediction_of_my_actions[t], axis=0), axis=0 )
+                # car_2_action_predicted = np.append(car_2_action_predicted, np.expand_dims(self.sim_data.car1_predicted_actions_other[t], axis=0), axis=0 )
+            #dist = np.sqrt(car_1_state[:,0] *car_1_state[:,0] + car_2_state[:,1] * car_2_state[:,1])
+
+            # plt.plot(range(1,self.frame+1), car_1_state[:,0], label='car 1 M')
+            # plt.plot(range(1,self.frame+1), car_2_state[:,1], label='car 2 H', linestyle='--')
+            # plt.legend()
+
+            fig1, (ax1, ax2) = plt.subplots(2) #3 rows
+            # fig1.suptitle('Euclidean distance and Agent States')
+            # ax1.plot(dist, label='car dist')
+            # ax1.legend()
+            # ax1.set(xlabel='time', ylabel='distance')
+
+            ax1.plot(range(1,self.frame+1), car_1_loss, label='car 1 loss')
+            #ax1.plot(range(1,self.frame+1), car_1_action_predicted[:,0], label='car 1 prediction of car 2 prediction of car 1')
+            ax1.legend()
+            ax1.set(xlabel='time', ylabel='cumulative loss')
+
+            ax2.plot(range(1,self.frame+1), car_2_loss, label='car 2 loss')
+            #ax2.plot(range(1,self.frame+1), car_2_action_predicted[:,0], label='car 1 prediction of car 2 prediction of car 1')
+            ax2.legend()
+            ax2.set(xlabel='time', ylabel='cumulative loss')
             plt.show()
 
 

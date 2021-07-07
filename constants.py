@@ -60,6 +60,9 @@ class CONSTANTS:
 
     COURTESY_CONSTANT = 0.
 
+    # FREQUENCY
+    FREQUENCY = 3
+
     class PARAMETERSET_1:
 
         # DISPLAY
@@ -87,8 +90,8 @@ class CONSTANTS:
                               INTENT=1,
                               COMMON_THETA=np.array([5., 0]),
                               ORIENTATION=0,
-                              ABILITY=0.02,
-                              ABILITY_O=0.02)
+                              ABILITY=1.0,#0.02,
+                              ABILITY_O=1.0)#0.02)
 
         # Right Car
         CAR_2 = CarParameters(SPRITE="white_car_sized.png",
@@ -99,8 +102,8 @@ class CONSTANTS:
                               INTENT=1e3,
                               COMMON_THETA=np.array([5., 0]),
                               ORIENTATION=0,
-                              ABILITY=0.02,
-                              ABILITY_O=0.02)
+                              ABILITY=1.0,#0.02,
+                              ABILITY_O=1.0)#0.02)
 
     class PARAMETERSET_2:
 
@@ -130,6 +133,8 @@ class CONSTANTS:
                               INTENT=1e3,
                               COMMON_THETA=np.array([0., 0]),
                               ORIENTATION=0,
+                              # ABILITY=1,
+                              # ABILITY_O=1)
                               ABILITY=0.002,
                               ABILITY_O=0.002)
 
@@ -142,6 +147,8 @@ class CONSTANTS:
                               INTENT=1,
                               COMMON_THETA=np.array([0., -90]),
                               ORIENTATION=-90,
+                              # ABILITY=1,
+                              # ABILITY_O=1)
                               ABILITY=0.002,
                               ABILITY_O=0.002)
 class MATRICES:

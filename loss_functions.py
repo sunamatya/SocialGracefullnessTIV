@@ -140,7 +140,7 @@ class LossFunctions:
 
         trajectory_self = trajectory_set[np.where(loss_value_set == np.min(loss_value_set))[0][0]]
         loss_self = np.min(loss_value_set)
-        return trajectory_self
+        return trajectory_self, loss_self
 
     def reactive_loss(self, theta_self, trajectory, trajectory_other, probability, s_self, s_self_vel, s_self_acc,
                       s_other, s_other_vel, s_other_acc, s):
@@ -155,6 +155,56 @@ class LossFunctions:
         #
         # s_ability = s.P_CAR.ABILITY
         # o_ability = o.P_CAR.ABILITY
+        loss_individual = []
+
+        for t_s in trajectory:
+            loss = []
+            for t_o in trajectory_other:
+
+                s_other_predict, s_other_predict_vel = self.dynamic(t_o, s)
+                s_self_predict, s_self_predict_vel = self.dynamic(t_s, s)
+
+                D = box_self.get_collision_loss(s_self_predict, s_other_predict, box_other) + 1e-12
+                gap = 1.05  # TODO: generalize this
+                for i in range(s_self_predict.shape[0]):
+                    if t_s[1] == 0:
+                        if s_self_predict[i, 0] <= -gap + 1e-12 or s_self_predict[i, 0] >= gap - 1e-12 or \
+                                s_other_predict[i, 1] >= gap - 1e-12 or s_other_predict[i, 1] <= -gap + 1e-12:
+                            D[i] = np.inf
+                    else:
+                        if s_self_predict[i, 1] <= -gap + 1e-12 or s_self_predict[i, 1] >= gap - 1e-12 or \
+                                s_other_predict[i, 0] >= gap - 1e-12 or s_other_predict[i, 0] <= -gap + 1e-12:
+                            D[i] = np.inf
+
+                collision_loss = np.sum(np.exp(C.EXPCOLLISION * (-D + C.CAR_LENGTH ** 2 * 1.5)))
+
+                if t_s[1] == 0:
+                    intent_loss = theta_self * np.exp(C.EXPTHETA * (- s_self_predict[C.ACTION_TIMESTEPS-1][0] + 0.6))
+                else:
+                    intent_loss = theta_self * np.exp(C.EXPTHETA * (s_self_predict[C.ACTION_TIMESTEPS-1][1] + 0.6))
+
+                loss.append(collision_loss + intent_loss)
+
+            loss_all += sum(np.array(loss) * np.array(probability))
+            #loss_individual.append(sum(np.array(loss) * np.array(probability)))
+
+        # print time.time()pychre
+        return loss_all # Return weighted sum
+
+    def reactive_loss_old(self, theta_self, trajectory, trajectory_other, probability, s_self, s_self_vel, s_self_acc,
+                      s_other, s_other_vel, s_other_acc, s):
+
+        """ Loss function defined to be a combination of state_loss and intent_loss with a weighted factor c """
+        loss_all = 0
+        o = s.other_car
+        box_self = s.collision_box
+        box_other = o.collision_box
+        s_who = s.who
+        o_who = o.who
+        #
+        # s_ability = s.P_CAR.ABILITY
+        # o_ability = o.P_CAR.ABILITY
+        loss_individual = []
 
         for t_s in trajectory:
             loss = []
@@ -183,9 +233,12 @@ class LossFunctions:
                     intent_loss = theta_self * np.exp(C.EXPTHETA * (s_self_predict[-1][1] + 0.6))
 
                 loss.append(collision_loss + intent_loss)
+
             loss_all += sum(np.array(loss) * np.array(probability))
+            #loss_individual.append(sum(np.array(loss) * np.array(probability)))
+
         # print time.time()pychre
-        return loss_all  # Return weighted sum
+        return loss_all # Return weighted sum
 
     def courteous_baseline_loss(self, agent, action, other_agent_intent):  # loss of other when self uses s.wanted_trajectory_self
         s = agent
@@ -711,7 +764,8 @@ class LossFunctions:
     def dynamic(self, action_self, s):  # Dynamic of cubic polynomial on velocity
         ability = s.P_CAR.ABILITY
         ability_o = s.P_CAR.ABILITY_O
-        N = C.ACTION_TIMESTEPS  # ??
+        #N = C.ACTION_TIMESTEPS  # ??
+        N = C.ACTION_TIMESTEPS+ C.FREQUENCY
         T = 1  # ??
         if s.who == 1:  # the car who conduct the prediction
             if action_self[1] == 0:  # the car dynamic it want to predict
@@ -799,3 +853,42 @@ class LossFunctions:
             intent_loss = agent_intent * np.exp(
                 C.EXPTHETA * (-agent.P_CAR.DESIRED_POSITION[1] + s_self_predict[-1][1]))
         return intent_loss
+
+    def calculate_instanteous_reactive_loss(self, theta_self, trajectory, trajectory_other, s_self, s_other,s, probability):
+        loss_all = 0
+        o = s.other_car
+        box_self = s.collision_box
+        box_other = o.collision_box
+        s_who = s.who
+        o_who = o.who
+        #
+        # s_ability = s.P_CAR.ABILITY
+        # o_ability = o.P_CAR.ABILITY
+        loss_individual = []
+
+        for t_s in trajectory:
+            loss = []
+            for t_o in trajectory_other:
+                instant_intent_loss = theta_self * np.exp(C.EXPTHETA * (- s_self + 0.6))
+                d = s.collision_box.get_collision_loss(s_self, s_other, o.collision_box) + 1e-12
+                gap = 1.05  # TODO: generalize this
+                # if t_s[1] == 0:
+                if s_self <= -gap + 1e-12 or s_self >= gap - 1e-12 or \
+                        s_other >= gap - 1e-12 or s_other <= -gap + 1e-12:
+                    d = np.inf
+                # else:
+                #     if s_self_predict[i, 1] <= -gap + 1e-12 or s_self_predict[i, 1] >= gap - 1e-12 or \
+                #             s_other_predict[i, 0] >= gap - 1e-12 or s_other_predict[i, 0] <= -gap + 1e-12:
+                #         d = np.inf
+                instant_collision_loss = np.exp(C.EXPCOLLISION * (-d + C.CAR_LENGTH ** 2 * 1.5))
+                loss.append(instant_collision_loss + instant_intent_loss)
+
+                loss_all += sum(np.array(loss) * np.array(probability))
+                # loss_individual.append(sum(np.array(loss) * np.array(probability)))
+
+                # print time.time()pychre
+        return loss_all  # Return weighted sum
+
+
+
+

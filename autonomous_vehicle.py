@@ -49,12 +49,14 @@ class AutonomousVehicle:
         self.planned_trajectory_set = []
         #added new things here for different frequency #Sunny
         self.temp_action_set = []
+        self.temp_action_set_other = []
         self.track_back = 0
 
         # Initialize others space
         self.states_o = []
         self.actions_set_o = []
         self.other_car = []
+        self.predicted_trajectory_set_other = []
 
         # Initialize prediction_variables
         self.predicted_theta_other = self.P_CAR.INTENT  # consider others as equally aggressive
@@ -77,6 +79,9 @@ class AutonomousVehicle:
 
         #inference style
         self.inference_style = inference_type
+
+        #predicted self trajectory for loss
+        self.predicted_trajectory_self = []
 
     def get_state(self, delay):
         return self.states[-1 * delay]
@@ -112,28 +117,49 @@ class AutonomousVehicle:
             self.predicted_theta_self = theta_self
             self.predicted_trajectory_other = predicted_trajectory_other
             self.predicted_others_prediction_of_my_trajectory = predicted_others_prediction_of_my_trajectory
-            self.predicted_actions_other = [self.dynamic(predicted_trajectory_other[i])
+            predicted_actions_other = [self.dynamic(predicted_trajectory_other[i])
                                             for i in range(len(predicted_trajectory_other))]
+            #self.predicted_actions_other = predicted_actions_other
             self.predicted_others_prediction_of_my_actions = [
                 self.dynamic(predicted_others_prediction_of_my_trajectory[i])
                 for i in range(len(predicted_others_prediction_of_my_trajectory))]
 
             ########## Calculate machine actions here ###########
-            planned_trajectory, planned_actions = self.get_actions()
+            #planned_trajectory, planned_actions = self.get_actions()
+            planned_trajectory, planned_actions, _ = self.get_actions_and_loss()
+            print("planned_trajectory", planned_trajectory)
 
             planned_actions[np.where(np.abs(planned_actions) < 1e-6)] = 0.  # remove numerical errors
+            #self.predicted_trajectory_self = self.dynamic()
         else:
-            planned_trajectory= self.planned_trajectory_set[-1]
+            planned_trajectory = self.planned_trajectory_set[-1]
             planned_actions= self.temp_action_set[1:]
+            predicted_trajectory_other = self.predicted_trajectory_set_other[-1]
+            if len(self.temp_action_set_other) == 2:
+                predicted_actions_other = [self.temp_action_set_other[0][1:], self.temp_action_set_other[1][1:]]
+            else:
+                predicted_actions_other = [self.temp_action_set_other[0][1:]]
+            #self.predicted_actions_set_other = self.predicted_trajectory_set_other[-1]
+
+
+
+            #predicted_actions_other = self.temp_action_set_others[1:]
+
+
 
         # self.states.append(np.add(self.states[-1], (planned_actions[self.track_back][0],
         #                                             planned_actions[self.track_back][1])))
         self.states.append(planned_actions[0])
         self.actions_set.append(self.states[-1]-self.states[-2])
-        self.planned_actions_set = self.dynamic(planned_trajectory)
+        #self.planned_actions_set = self.dynamic(planned_trajectory)
+        self.planned_actions_set  = planned_actions
         self.planned_trajectory_set.append(planned_trajectory)
-
         self.temp_action_set = planned_actions
+
+        self.predicted_actions_other = predicted_actions_other
+        self.predicted_trajectory_set_other.append(predicted_trajectory_other)
+        self.temp_action_set_other = predicted_actions_other
+
 
     def get_actions(self):
 
@@ -245,6 +271,119 @@ class AutonomousVehicle:
         actions_self = self.dynamic(trajectory_self)
         # print actions_self
         return trajectory_self, actions_self
+
+
+
+    def get_actions_and_loss(self):
+
+        """ Function that accepts 2 vehicles states, intents, criteria, and an amount of future steps
+        and return the ideal actions based on the loss function"""
+
+        # if len(self.actions_set_o)>0:
+        #     a0_other = self.actions_set_o
+        #     initial_trajectory_other = [np.linalg.norm(a0_other[-1])*C.ACTION_TIMESTEPS,
+        #                                 np.arctan2(a0_other[-1, 1], a0_other[-1, 0])*180./np.pi]
+        #     initial_trajectory_self = self.trajectory_s
+        # else:
+        #     initial_trajectory_other = self.P_CAR_O.COMMON_THETA
+        #     initial_trajectory_self = self.P_CAR_S.COMMON_THETA
+
+        theta_other = self.predicted_theta_other
+        theta_self = self.intent
+        box_other = self.other_car.collision_box
+        box_self = self.collision_box
+
+        # initial_expected_trajectory_self = self.prediction_of_others_prediction_of_my_trajectory
+
+        bounds_self = [(-C.ACTION_TIMESTEPS * self.P.VEHICLE_MAX_SPEED, C.ACTION_TIMESTEPS * self.P.VEHICLE_MAX_SPEED),
+                       # Radius
+                       (-C.ACTION_TURNANGLE + self.P_CAR.ORIENTATION,
+                        C.ACTION_TURNANGLE + self.P_CAR.ORIENTATION)]  # Angle
+
+        bounds_other = [(-C.ACTION_TIMESTEPS * self.P.VEHICLE_MAX_SPEED, C.ACTION_TIMESTEPS * self.P.VEHICLE_MAX_SPEED),
+                        # Radius
+                        (-C.ACTION_TURNANGLE + self.other_car.P_CAR.ORIENTATION,
+                         C.ACTION_TURNANGLE + self.other_car.P_CAR.ORIENTATION)]  # Angle
+
+        A = np.zeros((C.ACTION_TIMESTEPS, C.ACTION_TIMESTEPS))
+        A[np.tril_indices(C.ACTION_TIMESTEPS, 0)] = 1
+
+        cons_other = []
+        cons_self = []
+
+        if self.other_car.P_CAR.BOUND_X is not None:
+            if self.other_car.P_CAR.BOUND_X[0] is not None:
+                cons_other.append({'type': 'ineq', 'fun': lambda x: -self.states_o[-1][0] -
+                                                                    (x[0] * scipy.cos(np.deg2rad(x[1]))) -
+                                                                    box_other.height / 2 +
+                                                                    self.other_car.P_CAR.BOUND_X[1]})
+            if self.other_car.P_CAR.BOUND_X[1] is not None:
+                cons_other.append({'type': 'ineq', 'fun': lambda x: self.states_o[-1][0] +
+                                                                    (x[0] * scipy.cos(np.deg2rad(x[1]))) -
+                                                                    box_other.height / 2 -
+                                                                    self.other_car.P_CAR.BOUND_X[0]})
+
+        if self.other_car.P_CAR.BOUND_Y is not None:
+            if self.other_car.P_CAR.BOUND_Y[0] is not None:
+                cons_other.append({'type': 'ineq', 'fun': lambda x: -self.states_o[-1][1] -
+                                                                    (x[0] * scipy.sin(np.deg2rad(x[1]))) -
+                                                                    box_other.width / 2 +
+                                                                    self.other_car.P_CAR.BOUND_Y[1]})
+            if self.other_car.P_CAR.BOUND_Y[1] is not None:
+                cons_other.append({'type': 'ineq', 'fun': lambda x: self.states_o[-1][1] +
+                                                                    (x[0] * scipy.sin(np.deg2rad(x[1]))) -
+                                                                    box_other.width / 2 -
+                                                                    self.other_car.P_CAR.BOUND_Y[0]})
+
+        if self.P_CAR.BOUND_X is not None:
+            if self.P_CAR.BOUND_X[0] is not None:
+                cons_self.append({'type': 'ineq', 'fun': lambda x: -self.states[-1][0] -
+                                                                   (x[0] * scipy.cos(np.deg2rad(x[1]))) -
+                                                                   box_self.height / 2 + self.P_CAR.BOUND_X[1]})
+            if self.P_CAR.BOUND_X[1] is not None:
+                cons_self.append({'type': 'ineq', 'fun': lambda x: self.states[-1][0] +
+                                                                   (x[0] * scipy.cos(np.deg2rad(x[1]))) -
+                                                                   box_self.height / 2 - self.P_CAR.BOUND_X[0]})
+
+        if self.P_CAR.BOUND_Y is not None:
+            if self.P_CAR.BOUND_Y[0] is not None:
+                cons_self.append({'type': 'ineq', 'fun': lambda x: self.states[-1][1] +
+                                                                   (x[0] * scipy.sin(np.deg2rad(x[1]))) -
+                                                                   box_self.width / 2 - self.P_CAR.BOUND_Y[0]})
+            if self.P_CAR.BOUND_Y[1] is not None:
+                cons_self.append({'type': 'ineq', 'fun': lambda x: -self.states[-1][1] -
+                                                                   (x[0] * scipy.sin(np.deg2rad(x[1]))) -
+                                                                   box_self.width / 2 + self.P_CAR.BOUND_Y[1]})
+
+        loss_value = 0
+        loss_value_old = loss_value + C.LOSS_THRESHOLD + 1
+        iter_count = 0
+
+        trajectory_other = self.predicted_trajectory_other
+        # trajectory_self = initial_trajectory_self
+        # predicted_trajectory_self = initial_expected_trajectory_self
+
+        # guess_set = np.array([[0,0],[10,0]]) #TODO: need to generalize this
+
+        trials = C.TRAJECTORY_SET
+        guess_set = np.hstack((np.expand_dims(trials, axis=1), np.ones((trials.size, 1)) * self.P_CAR.ORIENTATION))
+        guess_other = np.hstack((np.expand_dims(trials, axis=1), np.ones((trials.size, 1)) * self.other_car.P_CAR.ORIENTATION))
+
+        if self.loss.characterization is 'basic':
+            trajectory_self = self.basic_motion()
+        elif self.loss.characterization is 'reactive':
+            trajectory_self, loss_value = self.loss.loss(guess_set, self, guess_other=guess_other)
+        elif self.loss.characterization is 'courteous':
+            trajectory_self = self.multi_search_courteous(guess_set)
+        elif self.loss.characterization is 'berkeley_courteous':
+            trajectory_self = self.multi_search_berkeley_courteous(guess_set)
+        else:
+            trajectory_self = self.multi_search(guess_set)
+        # print trajectory_self
+        # Interpolate for output
+        actions_self = self.dynamic(trajectory_self)
+        # print actions_self
+        return trajectory_self, actions_self, loss_value
 
     def basic_motion(self):
         s = self
@@ -488,8 +627,8 @@ class AutonomousVehicle:
         if s.inference_style == "empathetic" :
             for theta_self in trials_theta:
             # for theta_self in [s.intent]:
-                if s.who == 1:
-                    theta_self = s.intent
+            #     if s.who == 1:
+            #         theta_self = s.intent
                 for theta_other in trials_theta_other:
                     # for theta_other in [1.]:
                     trajectory_self, trajectory_other, my_loss_all, other_loss_all = self.equilibrium(theta_self,
@@ -583,6 +722,9 @@ class AutonomousVehicle:
                     else:
                         fun = 1e32
 
+                    print("trajectory self wanted other, minimum from other loss", trajectory_self_wanted_other)
+                    print("other_trajectory_wanted, minimum of my loss", other_trajectory_wanted)
+                    print("trajectory_other: what I think others will do, l2 norm: ", trajectory_other)
                     inference_set.append([theta_self,
                                           theta_other,
                                           trajectory_other,
@@ -699,7 +841,8 @@ class AutonomousVehicle:
                                           1./len(trajectory_other)*len(trajectory_self_wanted_other)*len(other_trajectory_wanted)])
                     loss_value_set.append(round(fun*1e12)/1e12)
 
-        candidate = np.where(loss_value_set == np.min(loss_value_set))[0]
+        print(inference_set)
+        candidate = np.where(loss_value_set == np.min(loss_value_set))[0] # l2 norm of the other agent is the candidate
         theta_self_out = []
         theta_other_out = []
         trajectory_self_out = []
@@ -720,14 +863,14 @@ class AutonomousVehicle:
                             trajectory_self_out.append(inference_set[candidate[i]][3][k])
                             trajectory_self_wanted_other_out.append(inference_set[candidate[i]][4][l])
                             other_trajectory_wanted_out.append(inference_set[candidate[i]][5][p])
-                            inference_probability_out.append(1./len(candidate)*inference_set[candidate[i]][6])
+                            inference_probability_out.append(1./len(candidate)*inference_set[candidate[i]][6]) # equation 5
 
         inference_probability_out = np.array(inference_probability_out)
         # update theta probability
-        for theta_other in trials_theta_other:
+        for theta_other in trials_theta_other: # equation 6
             theta_probability.append(sum(inference_probability_out[np.where(theta_other_out==theta_other)[0]]))
         #theta_probability = (self.theta_probability * self.frame + theta_probability) / (self.frame + 1)
-        theta_probability = self.theta_probability * theta_probability
+        theta_probability = self.theta_probability * theta_probability # equation 7.5
         if sum(theta_probability) > 0:
             theta_probability = theta_probability/sum(theta_probability)
         else:
@@ -739,6 +882,9 @@ class AutonomousVehicle:
             inference_probability_out[id] = inference_probability_out[id]/\
                                              sum(inference_probability_out[id]) * theta_probability[i]
         inference_probability_out = inference_probability_out/sum(inference_probability_out)
+        print("trajectory out other", trajectory_other_out)
+        print("inference probability out", inference_probability_out)
+        print("theta probability", theta_probability)
 
         return theta_other_out, theta_self_out, trajectory_other_out, trajectory_self_out, \
                trajectory_self_wanted_other_out, other_trajectory_wanted_out, inference_probability_out, \
@@ -911,8 +1057,11 @@ class AutonomousVehicle:
             for j in range(trials_trajectory_other.shape[0]):
                 loss_matrix[i, j, :] = self.simulate_game([trials_trajectory_self[i]], [trials_trajectory_other[j]],
                                                           theta_self, theta_other, s, o)
+                #print(trials_trajectory_self[i], trials_trajectory_other[j])
+        print(loss_matrix)
 
         # find equilibrium
+
         my_loss_all = []
         other_loss_all = []
         eq_all = []
@@ -1112,7 +1261,7 @@ class AutonomousVehicle:
          ability = self.P_CAR.ABILITY
          ability_o = self.P_CAR.ABILITY_O
 
-         N = C.ACTION_TIMESTEPS  # ??
+         N = C.ACTION_TIMESTEPS+ C.FREQUENCY  # ??
          T = 1  # ??
          if self.who == 1: #if the car who conduct the prediction is car#1
               if action_self[1] == 0: # car#1 predict car#1
@@ -1133,7 +1282,6 @@ class AutonomousVehicle:
                       vel_self = self.actions_set_o[-1]
                       state_0 = np.array(self.states_o[-1])
                       acci = np.array([0, -action_self[0] * ability])
-
          if self.who == 0: # if it is car 2
               if action_self[1] == 0: # car 2 predict car 1
                   if len(self.states_o) == 1:
