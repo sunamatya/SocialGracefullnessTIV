@@ -133,13 +133,18 @@ class LossFunctions:
                                           (s.states_o[-1] - s.states_o[-2]) - (s.states_o[-2] - s.states_o[-3]),
                                           s)
 
+            #print("inference probability for decision making", s.inference_probability)
             trajectory_set = np.append(trajectory_set, [guess], axis=0)
             loss_value_set = np.append(loss_value_set, loss)
         # if s.who == 0:
         #     print loss_value_set
+        #     if s.inference_probability != 1:
+        #         print("here")
+        #         exit()
 
         trajectory_self = trajectory_set[np.where(loss_value_set == np.min(loss_value_set))[0][0]]
         loss_self = np.min(loss_value_set)
+        #print("loss_value_set", loss_value_set)
         return trajectory_self, loss_self
 
     def reactive_loss(self, theta_self, trajectory, trajectory_other, probability, s_self, s_self_vel, s_self_acc,

@@ -17,7 +17,7 @@ class Main():
     def __init__(self):
 
         # Setup
-        self.duration = 100
+        self.duration =100
         self.P = C.PARAMETERSET_2  # Scenario parameters choice
         # Time handling
         self.clock = pg.time.Clock()
@@ -57,7 +57,7 @@ class Main():
             self.sim_draw = Sim_Draw(self.P, C.ASSET_LOCATION)
             pg.display.flip()
             # self.capture = True if input("Capture video (y/n): ") else False
-            self.capture = False
+            self.capture = True
             self.output_data_pickle = False
             output_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
             if self.output_data_pickle or self.capture:
@@ -106,17 +106,19 @@ class Main():
                 #car 1 threshold
                 skip_update_car1 = False
                 skip_update_car2 = False
-                if counter > 0:
-                    skip_update_car1 = True
-                    skip_update_car2 = True
-                    if np.abs(self.car_1.predicted_actions_other[0][0][1] - self.car_2.states[-1][1]) > 0.001:
-                        skip_update_car1 = False
-                        print(skip_update_car1)
+                if counter > 1:
+                    # skip_update_car1 = True
+                    # skip_update_car2 = True
+                    if len(self.car_1.predicted_actions_other) < 2:
+                        if np.abs(self.car_1.predicted_actions_other[0][0][1] - self.car_2.states[-1][1]) < 0.001:
+                            skip_update_car1 = True
+                            print(skip_update_car1)
 
                     #car 2 threshold
-                    if np.abs(self.car_2.predicted_actions_other[0][0][0] - self.car_1.states[-1][0])> 0.001:
-                        skip_update_car2 = False
-                        print(skip_update_car2)
+                    if len(self.car_2.predicted_actions_other) < 2:
+                        if np.abs(self.car_2.predicted_actions_other[0][0][0] - self.car_1.states[-1][0])< 0.001:
+                            skip_update_car2 = True
+                            print(skip_update_car2)
 
                 self.car_1.update(self.frame, skip_update_car1)
                 self.car_2.update(self.frame, skip_update_car2)
@@ -124,11 +126,11 @@ class Main():
                 print("counter" , counter )
 
                 # calculate gracefulness
-                grace = []
-                for wanted_trajectory_other in self.car_2.wanted_trajectory_other:
-                    wanted_actions_other = self.car_2.dynamic(wanted_trajectory_other)
-                    grace.append(1000*(self.car_1.states[-1][0] - wanted_actions_other[0][0]) ** 2)
-                self.car_1.social_gracefulness.append(sum(grace*self.car_2.inference_probability))
+                # grace = []
+                # for wanted_trajectory_other in self.car_2.wanted_trajectory_other:
+                #     wanted_actions_other = self.car_2.dynamic(wanted_trajectory_other)
+                #     grace.append(1000*(self.car_1.states[-1][0] - wanted_actions_other[0][0]) ** 2)
+                # self.car_1.social_gracefulness.append(sum(grace*self.car_2.inference_probability))
 
                 #calculate instant loss
                 import numpy as np

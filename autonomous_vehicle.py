@@ -74,7 +74,8 @@ class AutonomousVehicle:
             self.inference_probability = [0, 1]  # probability density of the inference vectors
 
         self.inference_probability_proactive = [] # for proactive and socially aware actions
-        self.theta_probability = np.ones(C.THETA_SET.shape)/C.THETA_SET.size
+        #self.theta_probability = np.ones(C.THETA_SET.shape)/C.THETA_SET.size
+        self.theta_probability = np.array([0.8, 0.2])
         self.social_gracefulness = []  # collect difference between action and what other wants
 
         #inference style
@@ -111,12 +112,16 @@ class AutonomousVehicle:
             self.wanted_states_other = [self.dynamic(other_wanted_trajectory[i]) for i in range(len(other_wanted_trajectory))]
             self.inference_probability = inference_probability
             self.inference_probability_proactive = inference_probability
+            print("prior theta probability :", self.theta_probability)
             self.theta_probability = theta_probability
+            print("posterior theta probability :", self.theta_probability)
 
             self.predicted_theta_other = theta_other
+            print("predicted theta other", theta_other)
             self.predicted_theta_self = theta_self
             self.predicted_trajectory_other = predicted_trajectory_other
             self.predicted_others_prediction_of_my_trajectory = predicted_others_prediction_of_my_trajectory
+            print(predicted_trajectory_other)
             predicted_actions_other = [self.dynamic(predicted_trajectory_other[i])
                                             for i in range(len(predicted_trajectory_other))]
             #self.predicted_actions_other = predicted_actions_other
@@ -602,6 +607,7 @@ class AutonomousVehicle:
 
         # if self.loss.characterization is 'reactive':
         intent_optimization_results = self.multi_search_intent()  # believes none is aggressive
+        #intent_optimization_results = self.multi_search_intent_tiv()
         # elif self.loss.characterization is 'aggressive':
         #     intent_optimization_results = self.multi_search_intent_aggressive()  # believes both are aggressive
         # elif self.loss.characterization is 'passive_aggressive':
@@ -615,6 +621,431 @@ class AutonomousVehicle:
         """ run multiple searches with different initial guesses """
         s = self
         who = self.who
+        trials_theta_other = C.THETA_SET
+        trials_action_other = C.TRAJECTORY_SET
+        # if who == 1:
+        #    trials_theta = [1.]
+        # else:
+        #    trials_theta = C.THETA_SET
+        trials_theta = C.THETA_SET
+        inference_set = []  # T0poODO: need to generalize
+        loss_value_set = []
+        action_set = []
+
+        if s.inference_style == "empathetic" :
+            for theta_self in trials_theta:
+                for theta_other in trials_theta_other:
+                    trajectory_self, trajectory_other, my_loss_all, other_loss_all = self.equilibrium(theta_self,
+                                                                                                      theta_other, s,
+                                                                                                      s.other_car)
+
+                    # my_trajectory = [trajectory_self[i] for i in
+                    #                  np.where(other_loss_all == np.min(other_loss_all))[0]]  # I believe others move fast
+                    # other_trajectory = [trajectory_other[i] for i in
+                    #                     np.where(my_loss_all == np.min(my_loss_all))[0]]  # others believe I move fast
+                    my_trajectory = trajectory_self
+                    other_trajectory = trajectory_other
+                    # other_trajectory_conservative = \
+                    #     [trajectory_other[i] for i in
+                    #      np.where(other_loss_all == np.min(other_loss_all))[0]]  # others move fast
+
+                    trajectory_self_wanted_other = []
+                    other_trajectory_wanted = []
+
+                    if trajectory_self is not []:
+                        action_self = [self.dynamic(my_trajectory[i])
+                                       for i in range(len(my_trajectory))]
+                        action_other = [self.dynamic(other_trajectory[i])
+                                        for i in range(len(other_trajectory))]
+                        # print '*********'
+                        # print action_other
+                        # print action_self
+                        # print "&&&&&&&&&"
+                        if self.frame == 0:
+                            if self.who == 1:
+                                fun_self = [np.linalg.norm(np.sum((action_self[i][0] - s.states[-1]) - s.actions_set[-1]) - self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum((action_other[i][0] - s.states_o[-1]) - s.actions_set_o[-1]) + self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                            else:
+                                fun_self = [np.linalg.norm(np.sum((action_self[i][0] - s.states[-1]) - s.actions_set[-1]) + self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum((action_other[i][0] - s.states_o[-1]) - s.actions_set_o[-1]) - self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                        else:
+                            if self.who == 1:
+                                fun_self = [np.linalg.norm(np.sum(s.actions_set[-1] - s.actions_set[-2]) - self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum(s.actions_set_o[-1] - s.actions_set_o[-2]) + self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                            else:
+                                fun_self = [np.linalg.norm(np.sum(s.actions_set[-1] - s.actions_set[-2]) + self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum(s.actions_set_o[-1] - s.actions_set_o[-2]) - self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                        # print fun_self
+                        # print fun_other
+                        if len(fun_other) != 0:
+                            fun = min(fun_other)
+                        else:
+                            break
+
+                        # what I think other want me to do if he wants to take the benefit
+                        trajectory_self_wanted_other = \
+                            [trajectory_self[i] for i in np.where(other_loss_all == np.min(other_loss_all))[0]]
+
+                        # what I want other to do
+                        other_trajectory_wanted = \
+                            [trajectory_other[i] for i in np.where(my_loss_all == np.min(my_loss_all))[0]]
+
+                        # what I think others expect me to do
+                        trajectory_self = np.atleast_2d(
+                            [my_trajectory[i] for i in np.where(fun_self == np.min(fun_self))[0]])
+
+                        # what I think others will do
+                        trajectory_other = np.atleast_2d(
+                            [other_trajectory[i] for i in np.where(fun_other == fun)[0]])
+                        # else:
+                        #     fun = 0
+                        #
+                        #     # what I think other want me to do if he wants to take the benefit
+                        #     trajectory_self_wanted_other = \
+                        #         [trajectory_self[i] for i in np.where(other_loss_all == np.min(other_loss_all))[0]]
+                        #
+                        #     # what I want other to do
+                        #     other_trajectory_wanted = \
+                        #         [trajectory_other[i] for i in np.where(my_loss_all == np.min(my_loss_all))[0]]
+                        #
+                        #     # what I think others expect me to do
+                        #     trajectory_self = np.atleast_2d(
+                        #         [my_trajectory[i] for i in np.where(fun_self == np.min(fun_self))[0]])
+                        #
+                        #     # what I think others will do
+                        #     trajectory_other = np.atleast_2d(
+                        #         [other_trajectory[i] for i in np.where(fun_other == fun)[0]])
+                    else:
+                        fun = 1e32
+
+                    # print("trajectory self wanted other, minimum from other loss", trajectory_self_wanted_other)
+                    # print("other_trajectory_wanted, minimum of my loss", other_trajectory_wanted)
+                    # print("trajectory_other: what I think others will do, l2 norm: ", trajectory_other)
+                    inference_set.append([theta_self,
+                                          theta_other,
+                                          trajectory_other,
+                                          trajectory_self,
+                                          trajectory_self_wanted_other,
+                                          other_trajectory_wanted,
+                                          1. / len(other_trajectory)])  #inference probability for trajectory other
+
+                    for i in range(len(other_trajectory)):
+                        action_set.append([theta_self, theta_other, other_trajectory[i], 1./len(other_trajectory)])
+
+                    loss_value_set.append(round(fun*1e12)/1e12)
+
+        else:
+            #for theta_self in trials_theta:
+            for theta_self in [s.intent]:
+                if s.who == 1:
+                    theta_self = s.intent
+                for theta_other in trials_theta_other:
+                    trajectory_self, trajectory_other, my_loss_all, other_loss_all = self.equilibrium(theta_self,
+                                                                                                      theta_other, s,
+                                                                                                      s.other_car)
+
+                    # my_trajectory = [trajectory_self[i] for i in
+                    #                  np.where(other_loss_all == np.min(other_loss_all))[0]]  # I believe others move fast
+                    # other_trajectory = [trajectory_other[i] for i in
+                    #                     np.where(my_loss_all == np.min(my_loss_all))[0]]  # others believe I move fast
+                    my_trajectory = trajectory_self
+                    other_trajectory = trajectory_other
+                    # other_trajectory_conservative = \
+                    #     [trajectory_other[i] for i in
+                    #      np.where(other_loss_all == np.min(other_loss_all))[0]]  # others move fast
+
+                    trajectory_self_wanted_other = []
+                    other_trajectory_wanted = []
+
+                    if trajectory_self is not []:
+                        action_self = [self.dynamic(my_trajectory[i])
+                                       for i in range(len(my_trajectory))]
+                        action_other = [self.dynamic(other_trajectory[i])
+                                        for i in range(len(other_trajectory))]
+                        # print '*********'
+                        # print action_other
+                        # print action_self
+                        # print "&&&&&&&&&"
+                        if self.frame == 0:
+                            if self.who == 1:
+                                fun_self = [np.linalg.norm(np.sum((action_self[i][0] - s.states[-1]) - s.actions_set[-1]) - self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum((action_other[i][0] - s.states_o[-1]) - s.actions_set_o[-1]) + self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                            else:
+                                fun_self = [np.linalg.norm(np.sum((action_self[i][0] - s.states[-1]) - s.actions_set[-1]) + self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum((action_other[i][0] - s.states_o[-1]) - s.actions_set_o[-1]) - self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                        else:
+                            if self.who == 1:
+                                fun_self = [np.linalg.norm(np.sum(s.actions_set[-1] - s.actions_set[-2]) - self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum(s.actions_set_o[-1] - s.actions_set_o[-2]) + self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                            else:
+                                fun_self = [np.linalg.norm(np.sum(s.actions_set[-1] - s.actions_set[-2]) + self.P_CAR.ABILITY * my_trajectory[i][0])
+                                            for i in range(len(my_trajectory))]
+                                fun_other = [np.linalg.norm(np.sum(s.actions_set_o[-1] - s.actions_set_o[-2]) - self.P_CAR.ABILITY_O * other_trajectory[i][0])
+                                             for i in range(len(other_trajectory))]
+                        # print fun_self
+                        # print fun_other
+                        if len(fun_other) != 0:
+                            fun = min(fun_other)
+                        else:
+                            break
+
+                        # what I think other want me to do if he wants to take the benefit
+                        trajectory_self_wanted_other = \
+                            [trajectory_self[i] for i in np.where(other_loss_all == np.min(other_loss_all))[0]]
+
+                        # what I want other to do
+                        other_trajectory_wanted = \
+                            [trajectory_other[i] for i in np.where(my_loss_all == np.min(my_loss_all))[0]]
+
+                        # what I think others expect me to do
+                        trajectory_self = np.atleast_2d(
+                            [my_trajectory[i] for i in np.where(fun_self == np.min(fun_self))[0]])
+
+                        # what I think others will do
+                        trajectory_other = np.atleast_2d(
+                            [other_trajectory[i] for i in np.where(fun_other == fun)[0]])
+                        # else:
+                        #     fun = 0
+                        #
+                        #     # what I think other want me to do if he wants to take the benefit
+                        #     trajectory_self_wanted_other = \
+                        #         [trajectory_self[i] for i in np.where(other_loss_all == np.min(other_loss_all))[0]]
+                        #
+                        #     # what I want other to do
+                        #     other_trajectory_wanted = \
+                        #         [trajectory_other[i] for i in np.where(my_loss_all == np.min(my_loss_all))[0]]
+                        #
+                        #     # what I think others expect me to do
+                        #     trajectory_self = np.atleast_2d(
+                        #         [my_trajectory[i] for i in np.where(fun_self == np.min(fun_self))[0]])
+                        #
+                        #     # what I think others will do
+                        #     trajectory_other = np.atleast_2d(
+                        #         [other_trajectory[i] for i in np.where(fun_other == fun)[0]])
+                    else:
+                        fun = 1e32
+
+                    inference_set.append([theta_self,
+                                          theta_other,
+                                          trajectory_other,
+                                          trajectory_self,
+                                          trajectory_self_wanted_other,
+                                          other_trajectory_wanted,
+                                          1. / len(other_trajectory)])  # sunny, it should be from nash equilibrium set
+                    #1./len(trajectory_other)*len(trajectory_self_wanted_other)*len(other_trajectory_wanted)])
+                                          #1./len(trajectory_other)*len(trajectory_self_wanted_other)*len(other_trajectory_wanted)])
+                    loss_value_set.append(round(fun*1e12)/1e12)
+
+        print("inference_set", inference_set)
+        print("loss value set", loss_value_set)
+        #canditate set are correct with the argmin of the distance function
+        candidate = np.where(loss_value_set == np.min(loss_value_set))[0] # l2 norm of the other agent is the candidate
+        theta_self_out = []
+        theta_other_out = []
+        trajectory_self_out = []
+        trajectory_other_out = []
+        trajectory_self_wanted_other_out = []
+        other_trajectory_wanted_out = []
+        inference_probability_out = []
+        theta_probability = []
+        joint_probability_out = []
+
+
+        for i in range(len(candidate)):
+            for j in range(len(inference_set[candidate[i]][2])):
+                for k in range(len(inference_set[candidate[i]][3])):
+                    for l in range(len(inference_set[candidate[i]][4])):
+                        for p in range(len(inference_set[candidate[i]][5])):
+                            theta_self_out.append(inference_set[candidate[i]][0])
+                            theta_other_out.append(inference_set[candidate[i]][1])
+                            trajectory_other_out.append(inference_set[candidate[i]][2][j])
+                            trajectory_self_out.append(inference_set[candidate[i]][3][k])
+                            trajectory_self_wanted_other_out.append(inference_set[candidate[i]][4][l])
+                            other_trajectory_wanted_out.append(inference_set[candidate[i]][5][p])
+                            #inference_probability_out.append(1./len(candidate)*inference_set[candidate[i]][6]) # equation 5
+                            joint_probability_out.append(1./len(candidate))
+
+        #inference_probability_out = np.array(inference_probability_out)
+        joint_probability_out = np.array(joint_probability_out)
+
+        print("candidate", candidate)
+        #print("inferece probability out", inference_probability_out)
+        # update theta probability
+        for theta_other in trials_theta_other: # equation 6
+            theta_probability.append(sum(joint_probability_out[np.where(theta_other_out==theta_other)[0]]))
+        #theta_probability = (self.theta_probability * self.frame + theta_probability) / (self.frame + 1)\
+        #print("joint theta probability of j from equation 5)", theta_probability)
+
+        #theta_probability_prior = self.theta_probability
+        theta_probability_prior = theta_probability.copy()
+        theta_probability = self.theta_probability * theta_probability # equation 7.5
+        #print("bayes update theta probability", theta_probability)
+        if sum(theta_probability) > 0:
+            theta_probability = theta_probability/sum(theta_probability)
+        else:
+            theta_probability = np.ones(C.THETA_SET.shape)/C.THETA_SET.size
+
+
+
+
+        # update inference probability accordingly
+        print("normalized posterior j theta update",  theta_probability)
+        #joint_theta_probability
+        # posterior_joint_probability = joint_probability_out*theta_probability/theta_probability_prior
+        # posterior_joint_probability = np.nan_to_num(posterior_joint_probability)
+        #posterior_joint_probability= joint_probability_out * theta_probability_prior
+        posterior_joint_probability_out = []
+        for i in range(len(joint_probability_out)):
+            p_joint = joint_probability_out[i]
+            theta_i = theta_self_out[i]
+            theta_j = theta_other_out[i]
+            if theta_j == 1000:
+                theta_prob_post = theta_probability[1]
+                theta_prob_prior = theta_probability_prior[1]
+                posterior_joint_probability =  p_joint* theta_prob_post / theta_prob_prior
+                posterior_joint_probability_out.append(posterior_joint_probability)
+            else:
+                theta_prob_post = theta_probability[0]
+                theta_prob_prior = theta_probability_prior[0]
+                posterior_joint_probability = p_joint * theta_prob_post / theta_prob_prior
+                posterior_joint_probability_out.append(posterior_joint_probability)
+
+
+
+        #
+        # for i in trials_theta:
+        #     for j in trials_theta_other:
+        #         idx_self = np.where(i == theta_self_out)
+        #         idx_other = np.where(j == theta_other_out)
+        #         for k in range(len(idx_self)):
+        #             if idx_self[k] == idx_other[k]:
+        #                 if theta_other_out == [1000]:
+        #                     theta_prob_post = theta_probability[1]
+        #                     theta_prob_prior= theta_probability_prior[1]
+        #                     posterior_joint_probability = joint_probability_out[idx_self[k]]*theta_prob_post/theta_prob_prior
+        #                     posterior_joint_probability_out.append(posterior_joint_probability)
+        #                 else:
+        #                     theta_prob_post = theta_probability[0]
+        #                     theta_prob_prior= theta_probability_prior[0]
+        #                     posterior_joint_probability = joint_probability_out[idx_self[k]]*theta_prob_post/theta_prob_prior
+        #                     posterior_joint_probability_out.append(posterior_joint_probability)
+        #
+
+
+        print("posterior joint probability out", posterior_joint_probability_out)
+        print(action_set)
+        # calculation of each separation from action set
+        theta_self_out_action = []
+        theta_other_out_action = []
+        trajectory_other_out_action = []
+        inference_probability_out = []
+        valid_combinations= []
+        for i in range(len(theta_self_out)):
+            valid_combinations.append([theta_self_out[i], theta_other_out[i]])
+
+        ##########either
+        # action_inf_probability = 0
+        # trajectory_inf_out = []
+        # for i in range(len(posterior_joint_probability_out)):
+        #     for j in range(len(action_set)):
+        #         theta_combination = [action_set[j][0], action_set[j][1]]
+        #         if (theta_combination == valid_combinations[i]):
+        #             action_inf_probability += action_set[j][3]*posterior_joint_probability_out[i]
+        #             trajectory_inf_out.append(action_set[j][2][0])
+        #
+        # trajectory_inf_out = list(set(trajectory_inf_out))
+        #
+        # print(trajectory_inf_out)
+        # print(action_inf_probability)
+
+        #########or
+        action_inf_probability = 0
+        trajectory_inf_out = {}
+        for i in range(len(posterior_joint_probability_out)):
+            for j in range(len(action_set)):
+                theta_combination = [action_set[j][0], action_set[j][1]]
+                if (theta_combination == valid_combinations[i]):
+                    action_inf_probability = action_set[j][3] * posterior_joint_probability_out[i]
+                    if action_set[j][2][0] in trajectory_inf_out.keys():
+                        trajectory_inf_out[action_set[j][2][0]]+= action_inf_probability
+                    else:
+                        trajectory_inf_out[action_set[j][2][0]] = action_inf_probability
+
+        print("trajectory = ", trajectory_inf_out.keys())
+        print("probability = ", trajectory_inf_out.values())
+        trajectory_other_out =[]
+        inference_probability_out = []
+
+        #trajectory_other_out = trajectory_inf_out.keys()
+        #inference_probability_out = trajectory_inf_out.values()
+        for key, value in trajectory_inf_out.items():
+            vehicle_id = action_set[0][2][1]
+            trajectory_other_out.append(np.array([key, vehicle_id]))
+            inference_probability_out.append(value)
+
+            print(key, value)
+
+        inference_probability_out = np.array(inference_probability_out)
+        # trajectory_inf_out.keys()
+        # dict_keys([3.0, 0.0])
+        # trajectory_inf_out.values()
+        # dict_values([0.5, 0.5])
+
+        # for i in range(len(action_set)):
+        #     theta_self_out_action.append(action_set[i][0])
+        #     theta_other_out_action.append(action_set[i][1])
+        #     trajectory_other_out_action.append(action_set[i][2][0])
+        #     inference_probability_out.append(action_set[i][3])
+        # # if who == 1:
+        # #     fille_action_set =
+        #
+        # for i in range(len(trials_action_other)):
+        #     id = np.where(trajectory_other_out_action == trials_action_other[i])[0]
+        #     lst_id = id.tolist()
+        #     print(trials_action_other[i], " ", lst_id)
+        #     inference_prob_temp = [inference_probability_out[j] for j in lst_id]
+        #     theta_self_temp = [theta_self_out_action[j] for j in lst_id]
+        #     theta_other_temp = [theta_other_out_action[j] for j in lst_id]
+
+
+
+            #[theta_self_out_action[i] for i in lst_id]
+
+            # (for i in range(len(trials_theta_other)):
+            #             # id = np.where(theta_other_out_action == trials_theta_other[i])
+
+        # for i in range(len(trials_theta_other)):
+        #     id = np.where(theta_other_out == trials_theta_other[i])[0]
+        #     inference_probability_out[id] = inference_probability_out[id]/\
+        #                                      sum(inference_probability_out[id]) * theta_probability[i]
+        # inference_probability_out = inference_probability_out/sum(inference_probability_out)
+        # print("trajectory out other", trajectory_other_out)
+        # print("inference probability out", inference_probability_out)
+        # print("theta probability out", theta_probability)
+
+        return theta_other_out, theta_self_out, trajectory_other_out, trajectory_self_out, \
+               trajectory_self_wanted_other_out, other_trajectory_wanted_out, inference_probability_out, \
+               theta_probability
+
+
+    def multi_search_intent_tiv(self):
+        """ run multiple searches with different initial guesses """
+        s = self
+        who = self.whos
         trials_theta_other = C.THETA_SET
         # if who == 1:
         #    trials_theta = [1.]
@@ -731,7 +1162,8 @@ class AutonomousVehicle:
                                           trajectory_self,
                                           trajectory_self_wanted_other,
                                           other_trajectory_wanted,
-                                          1./len(trajectory_other)*len(trajectory_self_wanted_other)*len(other_trajectory_wanted)])
+                                          1./len(other_trajectory)]) #sunny, it should be from nash equilibrium set
+                                          #1./len(trajectory_other)*len(trajectory_self_wanted_other)*len(other_trajectory_wanted)])
                     loss_value_set.append(round(fun*1e12)/1e12)
 
         else:
@@ -841,7 +1273,8 @@ class AutonomousVehicle:
                                           1./len(trajectory_other)*len(trajectory_self_wanted_other)*len(other_trajectory_wanted)])
                     loss_value_set.append(round(fun*1e12)/1e12)
 
-        print(inference_set)
+        print("inference_set", inference_set)
+        print("loss value set", loss_value_set)
         candidate = np.where(loss_value_set == np.min(loss_value_set))[0] # l2 norm of the other agent is the candidate
         theta_self_out = []
         theta_other_out = []
@@ -866,17 +1299,23 @@ class AutonomousVehicle:
                             inference_probability_out.append(1./len(candidate)*inference_set[candidate[i]][6]) # equation 5
 
         inference_probability_out = np.array(inference_probability_out)
+        print("candidate", candidate)
+        print("inferece probability out", inference_probability_out)
         # update theta probability
         for theta_other in trials_theta_other: # equation 6
             theta_probability.append(sum(inference_probability_out[np.where(theta_other_out==theta_other)[0]]))
-        #theta_probability = (self.theta_probability * self.frame + theta_probability) / (self.frame + 1)
+        #theta_probability = (self.theta_probability * self.frame + theta_probability) / (self.frame + 1)\
+        print("joint theta probability from equation 5)", theta_probability)
+
         theta_probability = self.theta_probability * theta_probability # equation 7.5
+        print("bayes update theta probability", theta_probability)
         if sum(theta_probability) > 0:
             theta_probability = theta_probability/sum(theta_probability)
         else:
             theta_probability = np.ones(C.THETA_SET.shape)/C.THETA_SET.size
 
         # update inference probability accordingly
+        print("normalized theta update",  theta_probability)
         for i in range(len(trials_theta_other)):
             id = np.where(theta_other_out == trials_theta_other[i])[0]
             inference_probability_out[id] = inference_probability_out[id]/\
@@ -884,11 +1323,12 @@ class AutonomousVehicle:
         inference_probability_out = inference_probability_out/sum(inference_probability_out)
         print("trajectory out other", trajectory_other_out)
         print("inference probability out", inference_probability_out)
-        print("theta probability", theta_probability)
+        print("theta probability out", theta_probability)
 
         return theta_other_out, theta_self_out, trajectory_other_out, trajectory_self_out, \
                trajectory_self_wanted_other_out, other_trajectory_wanted_out, inference_probability_out, \
                theta_probability
+
 
     def multi_search_intent_aggressive(self):
         """ run multiple searches with different initial guesses """
@@ -1058,7 +1498,7 @@ class AutonomousVehicle:
                 loss_matrix[i, j, :] = self.simulate_game([trials_trajectory_self[i]], [trials_trajectory_other[j]],
                                                           theta_self, theta_other, s, o)
                 #print(trials_trajectory_self[i], trials_trajectory_other[j])
-        print(loss_matrix)
+        #print(loss_matrix)
 
         # find equilibrium
 

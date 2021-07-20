@@ -61,7 +61,7 @@ class CONSTANTS:
     COURTESY_CONSTANT = 0.
 
     # FREQUENCY
-    FREQUENCY = 3
+    FREQUENCY = 0
 
     class PARAMETERSET_1:
 
@@ -130,7 +130,7 @@ class CONSTANTS:
                               DESIRED_POSITION=np.array([0.4, 0]),
                               BOUND_X=None,
                               BOUND_Y=np.array([-0.4, 0.4]),
-                              INTENT=1e3,
+                              INTENT= 1e6,
                               COMMON_THETA=np.array([0., 0]),
                               ORIENTATION=0,
                               # ABILITY=1,
@@ -144,7 +144,7 @@ class CONSTANTS:
                               DESIRED_POSITION=np.array([0, -0.4]),
                               BOUND_X=np.array([-0.4, 0.4]),
                               BOUND_Y=None,
-                              INTENT=1,
+                              INTENT=1,#1
                               COMMON_THETA=np.array([0., -90]),
                               ORIENTATION=-90,
                               # ABILITY=1,
