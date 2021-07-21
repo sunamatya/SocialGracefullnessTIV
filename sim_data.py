@@ -21,6 +21,8 @@ class Sim_Data():
         self.car1_theta_probability = []
         self.car1_gracefulness = []
         self.car1_planned_loss = []
+        self.car1_does_inference = []
+        self.car1_predicted_trajectory_other = []
 
         self.car2_states = []  # actual states
         self.car2_actions = []  # actual actions (converted from trajectory)
@@ -38,11 +40,14 @@ class Sim_Data():
         self.car2_inference_probability_proactive = []
         self.car2_theta_probability = []
         self.car2_planned_loss = []
+        self.car2_does_inference = []
+        self.car2_predicted_trajectory_other = []
+
 
     def append_car1(self, states, actions, action_sets, trajectory, predicted_theta_other, predicted_theta_self,
                     predicted_actions_other, predicted_others_prediction_of_my_actions, wanted_trajectory_self,
                     wanted_trajectory_other, wanted_states_other, inference_probability, inference_probability_proactive,
-                    theta_probability, social_gracefulness, planned_loss):
+                    theta_probability, social_gracefulness, planned_loss, does_inf, predicted_trajectory_other):
 
         self.car1_states = states
         self.car1_actions = actions
@@ -60,20 +65,14 @@ class Sim_Data():
         self.car1_theta_probability.append(theta_probability)
         self.car1_gracefulness = social_gracefulness
         self.car1_planned_loss.append(planned_loss)
+        self.car1_does_inference.append(does_inf)
+        self.car1_predicted_trajectory_other.append(predicted_trajectory_other)
+
 
     def append_car2(self, states, actions, action_sets, trajectory, predicted_theta_other, predicted_theta_self,
                     predicted_actions_other, predicted_others_prediction_of_my_actions, wanted_trajectory_self,
                     wanted_trajectory_other, wanted_states_other, inference_probability, inference_probability_proactive,
-                    theta_probability, planned_loss):
-
-
-
-
-
-
-
-
-
+                    theta_probability, planned_loss, does_inf, predicted_trajectory_other):
 
         self.car2_states = states
         self.car2_actions = actions
@@ -90,3 +89,5 @@ class Sim_Data():
         self.car2_inference_probability_proactive.append(inference_probability_proactive)
         self.car2_theta_probability.append(theta_probability)
         self.car2_planned_loss.append(planned_loss)
+        self.car2_does_inference.append(does_inf)
+        self.car2_predicted_trajectory_other.append(predicted_trajectory_other)

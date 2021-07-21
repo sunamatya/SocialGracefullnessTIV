@@ -104,6 +104,7 @@ class AutonomousVehicle:
 
             # if len(self.states_o) > C.TRACK_BACK and len(self.states) > C.TRACK_BACK:
             self.track_back = min(C.TRACK_BACK, len(self.states))
+            #this is inference
             theta_other, theta_self, predicted_trajectory_other, predicted_others_prediction_of_my_trajectory, \
             wanted_others_prediction_of_my_trajectory, other_wanted_trajectory, inference_probability, theta_probability = \
                 self.get_predicted_intent_of_other()
@@ -131,6 +132,93 @@ class AutonomousVehicle:
 
             ########## Calculate machine actions here ###########
             #planned_trajectory, planned_actions = self.get_actions()
+            #this is decision making
+            planned_trajectory, planned_actions, _ = self.get_actions_and_loss()
+            print("planned_trajectory", planned_trajectory)
+
+            planned_actions[np.where(np.abs(planned_actions) < 1e-6)] = 0.  # remove numerical errors
+            #self.predicted_trajectory_self = self.dynamic()
+        else:
+            planned_trajectory, planned_actions, _ = self.get_actions_and_loss()
+            print("planned_trajectory", planned_trajectory)
+
+            planned_actions[np.where(np.abs(planned_actions) < 1e-6)] = 0.
+
+            predicted_trajectory_other = self.predicted_trajectory_set_other[-1]
+            predicted_actions_other = [self.dynamic(predicted_trajectory_other[i])
+                                            for i in range(len(predicted_trajectory_other))]
+            # if len(self.temp_action_set_other) == 2:
+            #     predicted_actions_other = [self.temp_action_set_other[0][1:], self.temp_action_set_other[1][1:]]
+            # else:
+            #     predicted_actions_other = [self.temp_action_set_other[0][1:]]
+            #self.predicted_actions_set_other = self.predicted_trajectory_set_other[-1]
+
+
+
+            #predicted_actions_other = self.temp_action_set_others[1:]
+
+
+
+        # self.states.append(np.add(self.states[-1], (planned_actions[self.track_back][0],
+        #                                             planned_actions[self.track_back][1])))
+        # self.predicted_trajectory_self = self.dynamic()
+        self.states.append(planned_actions[0])
+        self.actions_set.append(self.states[-1]-self.states[-2])
+        #self.planned_actions_set = self.dynamic(planned_trajectory)
+        self.planned_actions_set  = planned_actions
+        self.planned_trajectory_set.append(planned_trajectory)
+        self.temp_action_set = planned_actions
+
+        self.predicted_actions_other = predicted_actions_other
+        self.predicted_trajectory_set_other.append(predicted_trajectory_other)
+        self.temp_action_set_other = predicted_actions_other
+
+    def update_original(self, frame, skip_update= False):
+        who = self.who
+        other = self.other_car
+        self.frame = frame
+        """ Function ran on every frame of simulation"""
+        ########## Update human characteristics here ########
+        if who == 1:  # 1 moves first
+            self.states_o = np.array(other.states)  # get other's states
+            self.actions_set_o = np.array(other.actions_set)  # get other's actions
+        elif who == 0:
+            self.states_o = np.array(other.states[:-1])  # get other's states
+            self.actions_set_o = np.array(other.actions_set[:-1])  # get other's actions
+
+        if not skip_update:
+
+            # if len(self.states_o) > C.TRACK_BACK and len(self.states) > C.TRACK_BACK:
+            self.track_back = min(C.TRACK_BACK, len(self.states))
+            #this is inference
+            theta_other, theta_self, predicted_trajectory_other, predicted_others_prediction_of_my_trajectory, \
+            wanted_others_prediction_of_my_trajectory, other_wanted_trajectory, inference_probability, theta_probability = \
+                self.get_predicted_intent_of_other()
+            self.wanted_trajectory_self = wanted_others_prediction_of_my_trajectory
+            self.wanted_trajectory_other = other_wanted_trajectory
+            self.wanted_states_other = [self.dynamic(other_wanted_trajectory[i]) for i in range(len(other_wanted_trajectory))]
+            self.inference_probability = inference_probability
+            self.inference_probability_proactive = inference_probability
+            print("prior theta probability :", self.theta_probability)
+            self.theta_probability = theta_probability
+            print("posterior theta probability :", self.theta_probability)
+
+            self.predicted_theta_other = theta_other
+            print("predicted theta other", theta_other)
+            self.predicted_theta_self = theta_self
+            self.predicted_trajectory_other = predicted_trajectory_other
+            self.predicted_others_prediction_of_my_trajectory = predicted_others_prediction_of_my_trajectory
+            print(predicted_trajectory_other)
+            predicted_actions_other = [self.dynamic(predicted_trajectory_other[i])
+                                            for i in range(len(predicted_trajectory_other))]
+            #self.predicted_actions_other = predicted_actions_other
+            self.predicted_others_prediction_of_my_actions = [
+                self.dynamic(predicted_others_prediction_of_my_trajectory[i])
+                for i in range(len(predicted_others_prediction_of_my_trajectory))]
+
+            ########## Calculate machine actions here ###########
+            #planned_trajectory, planned_actions = self.get_actions()
+            #this is decision making
             planned_trajectory, planned_actions, _ = self.get_actions_and_loss()
             print("planned_trajectory", planned_trajectory)
 
@@ -994,8 +1082,9 @@ class AutonomousVehicle:
         #inference_probability_out = trajectory_inf_out.values()
         for key, value in trajectory_inf_out.items():
             vehicle_id = action_set[0][2][1]
-            trajectory_other_out.append(np.array([key, vehicle_id]))
-            inference_probability_out.append(value)
+            if value != 0:
+                trajectory_other_out.append(np.array([key, vehicle_id]))
+                inference_probability_out.append(value)
 
             print(key, value)
 
