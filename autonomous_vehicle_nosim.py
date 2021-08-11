@@ -6,7 +6,6 @@ import bezier
 from collision_box import Collision_Box
 from loss_functions import LossFunctions
 from scipy import optimize
-import pygame as pg
 from scipy.interpolate import spline
 from scipy import stats
 import time
@@ -26,17 +25,17 @@ class AutonomousVehicle:
         # self.P_CAR_O = car_parameters_other
         self.loss = LossFunctions(loss_style)
         self.who = who
-        self.image = pg.transform.rotate(pg.transform.scale(pg.image.load(C.ASSET_LOCATION + self.P_CAR.SPRITE),
-                                                            (int(C.CAR_WIDTH * C.COORDINATE_SCALE * C.ZOOM),
-                                                             int(C.CAR_LENGTH * C.COORDINATE_SCALE * C.ZOOM))),
-                                         self.P_CAR.ORIENTATION)
+        # self.image = pg.transform.rotate(pg.transform.scale(pg.image.load(C.ASSET_LOCATION + self.P_CAR.SPRITE),
+        #                                                     (int(C.CAR_WIDTH * C.COORDINATE_SCALE * C.ZOOM),
+        #                                                      int(C.CAR_LENGTH * C.COORDINATE_SCALE * C.ZOOM))),
+        #                                  self.P_CAR.ORIENTATION)
 
         # self.image_o = pg.transform.rotate(pg.transform.scale(pg.image.load(C.ASSET_LOCATION + self.P_CAR_O.SPRITE),
         #                                                          (int(C.CAR_WIDTH * C.COORDINATE_SCALE * C.ZOOM),
         #                                                           int(C.CAR_LENGTH * C.COORDINATE_SCALE * C.ZOOM))), self.P_CAR_O.ORIENTATION)
 
-        self.collision_box = Collision_Box(self.image.get_width() / C.COORDINATE_SCALE / C.ZOOM,
-                                           self.image.get_height() / C.COORDINATE_SCALE / C.ZOOM, self.P)
+        self.collision_box = Collision_Box(60 / C.COORDINATE_SCALE / C.ZOOM,
+                                           120 / C.COORDINATE_SCALE / C.ZOOM, self.P)
         # self.collision_box_o = Collision_Box(self.image_o.get_width() / C.COORDINATE_SCALE / C.ZOOM,
         #                                      self.image_o.get_height() / C.COORDINATE_SCALE / C.ZOOM, self.P)
 
@@ -83,7 +82,7 @@ class AutonomousVehicle:
 
         #predicted self trajectory for loss
         self.predicted_trajectory_self = []
-        self.joint_probability_matrix = np.array((2, 2))
+        self.joint_probability_matrix = np.zeros((2, 2))
         self.planned_trajectory= []
 
     def get_state(self, delay):

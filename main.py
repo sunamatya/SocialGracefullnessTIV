@@ -370,12 +370,12 @@ class Main():
             ax1.plot(range(1,self.frame+1), car_1_loss, label='car 1 loss')
             #ax1.plot(range(1,self.frame+1), car_1_action_predicted[:,0], label='car 1 prediction of car 2 prediction of car 1')
             ax1.legend()
-            ax1.set(xlabel='time', ylabel='cumulative loss')
+            ax1.set(xlabel='time', ylabel='instant loss')
 
             ax2.plot(range(1,self.frame+1), car_2_loss, label='car 2 loss')
             #ax2.plot(range(1,self.frame+1), car_2_action_predicted[:,0], label='car 1 prediction of car 2 prediction of car 1')
             ax2.legend()
-            ax2.set(xlabel='time', ylabel='cumulative loss')
+            ax2.set(xlabel='time', ylabel='instant loss')
             plt.show()
 
         if self.show_does_inference:

@@ -19,7 +19,8 @@ class CONSTANTS:
 
     # DISPLAY
     DRAW = True
-    ASSET_LOCATION = "assets/"
+    ASSET_LOCATION = "C:\\Users\\samatya.ASURITE\\PycharmProjects\\SocialGracefullnessTIV\\assets\\"
+    #ASSET_LOCATION = "assets/"
     FPS = 1
     AXES_SHOW = 0.5
     COORDINATE_SCALE = 150
@@ -81,25 +82,25 @@ class CONSTANTS:
 
         VEHICLE_MAX_SPEED = 0.1
 
-        # Left Car
+        # Left Car Machine
         CAR_1 = CarParameters(SPRITE="grey_car_sized.png",
                               INITIAL_POSITION=np.array([-1, -1]),
                               DESIRED_POSITION=np.array([3, 1]),  # Maybe change to be further down the road?
                               BOUND_X=None,
                               BOUND_Y=np.array([-0.5, 1.5]),
-                              INTENT=1,
+                              INTENT=1, # non agressive
                               COMMON_THETA=np.array([5., 0]),
                               ORIENTATION=0,
                               ABILITY=1.0,#0.02,
                               ABILITY_O=1.0)#0.02)
 
-        # Right Car
+        # Right Car Human
         CAR_2 = CarParameters(SPRITE="white_car_sized.png",
                               INITIAL_POSITION=np.array([0, 0]),
                               DESIRED_POSITION=np.array([3, 0]),  # Maybe change to be further down the road?
                               BOUND_X=None,
                               BOUND_Y=np.array([-0.5, 1.5]),
-                              INTENT=1e3,
+                              INTENT=1e3, # agressive to non agressice
                               COMMON_THETA=np.array([5., 0]),
                               ORIENTATION=0,
                               ABILITY=1.0,#0.02,
@@ -120,7 +121,6 @@ class CONSTANTS:
 
         # COLLISION BOXES
         COLLISION_BOXES = np.array([(-0.4, 0.4, -0.4, 0.4)])  # List of separate collision boxes (-x, x, -y, y)
-
         VEHICLE_MAX_SPEED = 0.05
         INITIAL_SPEED = 0.025
 
@@ -130,7 +130,7 @@ class CONSTANTS:
                               DESIRED_POSITION=np.array([0.4, 0]),
                               BOUND_X=None,
                               BOUND_Y=np.array([-0.4, 0.4]),
-                              INTENT= 1e6,
+                              INTENT= 1,
                               COMMON_THETA=np.array([0., 0]),
                               ORIENTATION=0,
                               # ABILITY=1,
@@ -144,7 +144,7 @@ class CONSTANTS:
                               DESIRED_POSITION=np.array([0, -0.4]),
                               BOUND_X=np.array([-0.4, 0.4]),
                               BOUND_Y=None,
-                              INTENT=1,#1
+                              INTENT= 1e6,#1
                               COMMON_THETA=np.array([0., -90]),
                               ORIENTATION=-90,
                               # ABILITY=1,
