@@ -110,7 +110,7 @@ class Main():
                 #car 1 threshold
                 skip_update_car1 = False
                 skip_update_car2 = False
-                if counter > 1:
+                if counter > -1:
                     # skip_update_car1 = True
                     # skip_update_car2 = True
                     if len(self.car_1.predicted_actions_other) < 2:
@@ -140,7 +140,10 @@ class Main():
                 for wanted_trajectory_other in self.car_2.wanted_trajectory_other:
                     wanted_actions_other = self.car_2.dynamic(wanted_trajectory_other)
                     grace.append(1000*(self.car_1.states[-1][0] - wanted_actions_other[0][0]) ** 2)
-                self.car_1.social_gracefulness.append(sum(grace*self.car_2.wanted_inference_probability))
+
+                if not len(self.car_2.wanted_inference_probability) == 0:
+                    self.car_1.social_gracefulness.append(sum(grace*self.car_2.wanted_inference_probability))
+
 
                 #self.wanted_inference_probability
 

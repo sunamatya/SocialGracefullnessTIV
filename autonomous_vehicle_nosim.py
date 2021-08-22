@@ -152,9 +152,16 @@ class AutonomousVehicle:
 
             planned_actions[np.where(np.abs(planned_actions) < 1e-6)] = 0.
 
-            predicted_trajectory_other = self.predicted_trajectory_set_other[-1]
-            predicted_actions_other = [self.dynamic(predicted_trajectory_other[i])
-                                            for i in range(len(predicted_trajectory_other))]
+            if frame == 0:
+                predicted_trajectory_other = []
+                predicted_actions_other = []
+
+
+            else:
+
+                predicted_trajectory_other = self.predicted_trajectory_set_other[-1]
+                predicted_actions_other = [self.dynamic(predicted_trajectory_other[i])
+                                                for i in range(len(predicted_trajectory_other))]
             self.skip_update = True
             # if len(self.temp_action_set_other) == 2:
             #     predicted_actions_other = [self.temp_action_set_other[0][1:], self.temp_action_set_other[1][1:]]
