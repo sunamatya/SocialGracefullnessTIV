@@ -2,7 +2,7 @@ from constants import CONSTANTS as C
 from constants import MATRICES as M
 import numpy as np
 import scipy
-import bezier
+#import bezier
 from collision_box import Collision_Box
 from loss_functions import LossFunctions
 from scipy import optimize
@@ -73,8 +73,8 @@ class AutonomousVehicle:
             self.inference_probability = [0, 1]  # probability density of the inference vectors
 
         self.inference_probability_proactive = [] # for proactive and socially aware actions
-        #self.theta_probability = np.ones(C.THETA_SET.shape)/C.THETA_SET.size
-        self.theta_probability = np.array([0.8, 0.2])
+        self.theta_probability = np.ones(C.THETA_SET.shape)/C.THETA_SET.size
+        #self.theta_probability = np.array([0.8, 0.2])
         self.social_gracefulness = []  # collect difference between action and what other wants
 
         #inference style
@@ -84,6 +84,8 @@ class AutonomousVehicle:
         self.predicted_trajectory_self = []
         self.joint_probability_matrix = np.zeros((2, 2))
         self.planned_trajectory= []
+        self.wanted_inference_probability = []
+        self.skip_update = False
 
     def get_state(self, delay):
         return self.states[-1 * delay]
@@ -107,9 +109,10 @@ class AutonomousVehicle:
             self.track_back = min(C.TRACK_BACK, len(self.states))
             #this is inference
             theta_other, theta_self, predicted_trajectory_other, predicted_others_prediction_of_my_trajectory, \
-            wanted_others_prediction_of_my_trajectory, other_wanted_trajectory, inference_probability, theta_probability, joint_probability_matrix = \
-                self.get_predicted_intent_of_other()
+            wanted_others_prediction_of_my_trajectory, other_wanted_trajectory, inference_probability, theta_probability, \
+            joint_probability_matrix, wanted_inference_probability = self.get_predicted_intent_of_other()
             self.joint_probability_matrix = joint_probability_matrix
+            self.wanted_inference_probability = wanted_inference_probability
             self.wanted_trajectory_self = wanted_others_prediction_of_my_trajectory
             self.wanted_trajectory_other = other_wanted_trajectory
             self.wanted_states_other = [self.dynamic(other_wanted_trajectory[i]) for i in range(len(other_wanted_trajectory))]
@@ -139,6 +142,7 @@ class AutonomousVehicle:
             print("planned_trajectory", planned_trajectory)
 
             planned_actions[np.where(np.abs(planned_actions) < 1e-6)] = 0.  # remove numerical errors
+            self.skip_update = False
             #self.predicted_trajectory_self = self.dynamic()
         else:
             planned_trajectory, planned_actions, _ = self.get_actions_and_loss()
@@ -149,6 +153,7 @@ class AutonomousVehicle:
             predicted_trajectory_other = self.predicted_trajectory_set_other[-1]
             predicted_actions_other = [self.dynamic(predicted_trajectory_other[i])
                                             for i in range(len(predicted_trajectory_other))]
+            self.skip_update = True
             # if len(self.temp_action_set_other) == 2:
             #     predicted_actions_other = [self.temp_action_set_other[0][1:], self.temp_action_set_other[1][1:]]
             # else:
@@ -723,6 +728,7 @@ class AutonomousVehicle:
         inference_set = []  # T0poODO: need to generalize
         loss_value_set = []
         action_set = []
+        wanted_action_set = []
 
         if s.inference_style == "empathetic" :
             for theta_self in trials_theta:
@@ -831,6 +837,9 @@ class AutonomousVehicle:
 
                     for i in range(len(other_trajectory)):
                         action_set.append([theta_self, theta_other, other_trajectory[i], 1./len(other_trajectory)])
+
+                    for j in range(len(other_trajectory_wanted)):
+                        wanted_action_set.append([theta_self, theta_other, other_trajectory_wanted[j], 1./len(other_trajectory_wanted)])
 
                     loss_value_set.append(round(fun*1e12)/1e12)
 
@@ -1097,7 +1106,10 @@ class AutonomousVehicle:
         print("trajectory = ", trajectory_inf_out.keys())
         print("probability = ", trajectory_inf_out.values())
         trajectory_other_out =[]
+        other_trajectory_wanted_out = []
+
         inference_probability_out = []
+        wanted_inference_probability_out = []
 
         #trajectory_other_out = trajectory_inf_out.keys()
         #inference_probability_out = trajectory_inf_out.values()
@@ -1110,6 +1122,32 @@ class AutonomousVehicle:
             print(key, value)
 
         inference_probability_out = np.array(inference_probability_out)
+
+        print("wanted action set", wanted_action_set)
+        action_wanted_inf_probability = 0
+        trajectory_wanted_inf_out = {}
+        for i in range(len(posterior_joint_probability_out)):
+            for j in range(len(wanted_action_set)):
+                theta_combination = [wanted_action_set[j][0], wanted_action_set[j][1]]
+                if (theta_combination == valid_combinations[i]):
+                    action_wanted_inf_probability = wanted_action_set[j][3] * posterior_joint_probability_out[i]
+                    if wanted_action_set[j][2][0] in trajectory_wanted_inf_out.keys():
+                        trajectory_wanted_inf_out[wanted_action_set[j][2][0]]+= action_wanted_inf_probability
+                    else:
+                        trajectory_wanted_inf_out[wanted_action_set[j][2][0]] = action_wanted_inf_probability
+
+        print("trajectory wanted other= ", trajectory_wanted_inf_out.keys())
+        print("probability wanted other = ", trajectory_wanted_inf_out.values())
+
+        for key, value in trajectory_wanted_inf_out.items():
+            vehicle_id = wanted_action_set[0][2][1]
+            if value != 0:
+                other_trajectory_wanted_out.append(np.array([key, vehicle_id]))
+                wanted_inference_probability_out.append(value)
+
+            print(key, value)
+
+        wanted_inference_probability_out = np.array(wanted_inference_probability_out)
         # trajectory_inf_out.keys()
         # dict_keys([3.0, 0.0])
         # trajectory_inf_out.values()
@@ -1149,7 +1187,7 @@ class AutonomousVehicle:
 
         return theta_other_out, theta_self_out, trajectory_other_out, trajectory_self_out, \
                trajectory_self_wanted_other_out, other_trajectory_wanted_out, inference_probability_out, \
-               theta_probability, joint_probability_matrix
+               theta_probability, joint_probability_matrix, wanted_inference_probability_out
 
 
     def multi_search_intent_tiv(self):
@@ -1690,122 +1728,122 @@ class AutonomousVehicle:
 
         return loss_s, loss_o
 
-    def intent_loss_func(self, intent):
-        orientation_self = self.P_CAR_S.ORIENTATION
-        state_self = self.states_s[-C.TRACK_BACK]
-        state_other = self.states_o[-C.TRACK_BACK]
-        action_other = self.actions_set_o[-C.TRACK_BACK]
-        who = 1 - (self.P_CAR_S.BOUND_X is None)
+    # def intent_loss_func(self, intent):
+    #     orientation_self = self.P_CAR_S.ORIENTATION
+    #     state_self = self.states_s[-C.TRACK_BACK]
+    #     state_other = self.states_o[-C.TRACK_BACK]
+    #     action_other = self.actions_set_o[-C.TRACK_BACK]
+    #     who = 1 - (self.P_CAR_S.BOUND_X is None)
+    #
+    #     # alpha = intent[0] #aggressiveness of the agent
+    #     trajectory = intent  # what I was expected to do
+    #
+    #     # what I could have done and been
+    #     s_other = np.array(state_self)
+    #     nodes = np.array([[s_other[0], s_other[0] + trajectory[0] * np.cos(np.deg2rad(self.P_CAR_S.ORIENTATION)) / 2,
+    #                        s_other[0] + trajectory[0] * np.cos(np.deg2rad(trajectory[1]))],
+    #                       [s_other[1], s_other[1] + trajectory[0] * np.sin(np.deg2rad(orientation_self)) / 2,
+    #                        s_other[1] + trajectory[0] * np.sin(np.deg2rad(trajectory[1]))]])
+    #     curve = bezier.Curve(nodes, degree=2)
+    #     positions = np.transpose(curve.evaluate_multi(np.linspace(0, 1, C.ACTION_TIMESTEPS + 1)))
+    #     a_other = np.diff(positions, n=1, axis=0)
+    #     s_other_traj = np.array(s_other + np.matmul(M.LOWER_TRIANGULAR_MATRIX, a_other))
+    #
+    #     # actions and states of the agent
+    #     s_self = np.array(state_other)  # self.human_states_set[-1]
+    #     a_self = np.array(C.ACTION_TIMESTEPS * [action_other])  # project current agent actions to future
+    #     s_self_traj = np.array(s_self + np.matmul(M.LOWER_TRIANGULAR_MATRIX, a_self))
+    #
+    #     # I expect the agent to be this much aggressive
+    #     # theta_self = self.human_predicted_theta
+    #
+    #     # calculate the gradient of the control objective
+    #     A = M.LOWER_TRIANGULAR_MATRIX
+    #     D = np.sum((s_other_traj - s_self_traj) ** 2.,
+    #                axis=1) + 1e-12  # should be t_steps by 1, add small number for numerical stability
+    #     # need to check if states are in the collision box
+    #     gap = 1.05
+    #     for i in range(s_self_traj.shape[0]):
+    #         if who == 1:
+    #             if s_self_traj[i, 0] <= -gap + 1e-12 or s_self_traj[i, 0] >= gap - 1e-12 or s_other_traj[
+    #                 i, 1] >= gap - 1e-12 or s_other_traj[i, 1] <= -gap + 1e-12:
+    #                 D[i] = np.inf
+    #         elif who == 0:
+    #             if s_self_traj[i, 1] <= -gap + 1e-12 or s_self_traj[i, 1] >= gap - 1e-12 or s_other_traj[
+    #                 i, 0] >= gap - 1e-12 or s_other_traj[i, 0] <= -gap + 1e-12:
+    #                 D[i] = np.inf
+    #
+    #     # dD/da
+    #     # dDda_self = - np.dot(np.expand_dims(np.dot(A.transpose(), sigD**(-2)*dsigD),axis=1), np.expand_dims(ds, axis=0)) \
+    #     #        - np.dot(np.dot(A.transpose(), np.diag(sigD**(-2)*dsigD)), np.dot(A, a_self - a_other))
+    #     dDda_self = - 2 * C.EXPCOLLISION * np.dot(A.transpose(), (s_self_traj - s_other_traj) *
+    #                                               np.expand_dims(
+    #                                                   np.exp(C.EXPCOLLISION * (-D + C.CAR_LENGTH ** 2 * 1.5)),
+    #                                                   axis=1))
+    #
+    #     # update theta_hat_H
+    #     w = - dDda_self  # negative gradient direction
+    #
+    #     if who == 0:
+    #         if self.P.BOUND_HUMAN_X is not None:  # intersection
+    #             w[np.all([s_self_traj[:, 0] <= 1e-12, w[:, 0] <= 1e-12],
+    #                      axis=0), 0] = 0  # if against wall and push towards the wall, get a reaction force
+    #             w[np.all([s_self_traj[:, 0] >= -1e-12, w[:, 0] >= -1e-12],
+    #                      axis=0), 0] = 0  # TODO: these two lines are hard coded for intersection, need to check the interval
+    #             # print(w)
+    #         else:  # lane changing
+    #             w[np.all([s_self_traj[:, 1] <= 1e-12, w[:, 1] <= 1e-12],
+    #                      axis=0), 1] = 0  # if against wall and push towards the wall, get a reaction force
+    #             w[np.all([s_self_traj[:, 1] >= 1 - 1e-12, w[:, 1] >= -1e-12],
+    #                      axis=0), 1] = 0  # TODO: these two lines are hard coded for lane changing
+    #     else:
+    #         if self.P.BOUND_HUMAN_X is not None:  # intersection
+    #             w[np.all([s_self_traj[:, 1] <= 1e-12, w[:, 1] <= 1e-12],
+    #                      axis=0), 1] = 0  # if against wall and push towards the wall, get a reaction force
+    #             w[np.all([s_self_traj[:, 1] >= -1e-12, w[:, 1] >= -1e-12],
+    #                      axis=0), 1] = 0  # TODO: these two lines are hard coded for intersection, need to check the interval
+    #         else:  # lane changing
+    #             w[np.all([s_self_traj[:, 0] <= 1e-12, w[:, 0] <= 1e-12],
+    #                      axis=0), 0] = 0  # if against wall and push towards the wall, get a reaction force
+    #             w[np.all([s_self_traj[:, 0] >= -1e-12, w[:, 0] >= -1e-12],
+    #                      axis=0), 0] = 0  # TODO: these two lines are hard coded for lane changing
+    #     w = -w
+    #
+    #     # calculate best alpha for the enumeration of trajectory
+    #
+    #     if who == 1:
+    #         l = np.array([- C.EXPTHETA * np.exp(C.EXPTHETA * (-s_self_traj[-1][0] + 0.4)), 0.])
+    #         # don't take into account the time steps where one car has already passed
+    #         decay = (((s_self_traj - s_other_traj)[:, 0] < gap) + 0.0) * (
+    #         (s_self_traj - s_other_traj)[:, 1] < gap + 0.0)
+    #     else:
+    #         l = np.array([0., C.EXPTHETA * np.exp(C.EXPTHETA * (s_self_traj[-1][1] + 0.4))])
+    #         decay = (((s_other_traj - s_self_traj)[:, 0] < gap) + 0.0) * (
+    #         (s_other_traj - s_self_traj)[:, 1] < gap + 0.0)
+    #     decay = decay * np.exp(np.linspace(0, -10, C.ACTION_TIMESTEPS))
+    #     w = w * np.expand_dims(decay, axis=1)
+    #     l = l * np.expand_dims(decay, axis=1)
+    #     alpha = np.max((- np.trace(np.dot(np.transpose(w), l)) / (np.sum(l ** 2) + 1e-12), 0.1))
+    #
+    #     # if who == 0:
+    #     # alpha = 1.
+    #
+    #     x = w + alpha * l
+    #     L = np.sum(x ** 2)
+    #     return L, alpha
 
-        # alpha = intent[0] #aggressiveness of the agent
-        trajectory = intent  # what I was expected to do
-
-        # what I could have done and been
-        s_other = np.array(state_self)
-        nodes = np.array([[s_other[0], s_other[0] + trajectory[0] * np.cos(np.deg2rad(self.P_CAR_S.ORIENTATION)) / 2,
-                           s_other[0] + trajectory[0] * np.cos(np.deg2rad(trajectory[1]))],
-                          [s_other[1], s_other[1] + trajectory[0] * np.sin(np.deg2rad(orientation_self)) / 2,
-                           s_other[1] + trajectory[0] * np.sin(np.deg2rad(trajectory[1]))]])
-        curve = bezier.Curve(nodes, degree=2)
-        positions = np.transpose(curve.evaluate_multi(np.linspace(0, 1, C.ACTION_TIMESTEPS + 1)))
-        a_other = np.diff(positions, n=1, axis=0)
-        s_other_traj = np.array(s_other + np.matmul(M.LOWER_TRIANGULAR_MATRIX, a_other))
-
-        # actions and states of the agent
-        s_self = np.array(state_other)  # self.human_states_set[-1]
-        a_self = np.array(C.ACTION_TIMESTEPS * [action_other])  # project current agent actions to future
-        s_self_traj = np.array(s_self + np.matmul(M.LOWER_TRIANGULAR_MATRIX, a_self))
-
-        # I expect the agent to be this much aggressive
-        # theta_self = self.human_predicted_theta
-
-        # calculate the gradient of the control objective
-        A = M.LOWER_TRIANGULAR_MATRIX
-        D = np.sum((s_other_traj - s_self_traj) ** 2.,
-                   axis=1) + 1e-12  # should be t_steps by 1, add small number for numerical stability
-        # need to check if states are in the collision box
-        gap = 1.05
-        for i in range(s_self_traj.shape[0]):
-            if who == 1:
-                if s_self_traj[i, 0] <= -gap + 1e-12 or s_self_traj[i, 0] >= gap - 1e-12 or s_other_traj[
-                    i, 1] >= gap - 1e-12 or s_other_traj[i, 1] <= -gap + 1e-12:
-                    D[i] = np.inf
-            elif who == 0:
-                if s_self_traj[i, 1] <= -gap + 1e-12 or s_self_traj[i, 1] >= gap - 1e-12 or s_other_traj[
-                    i, 0] >= gap - 1e-12 or s_other_traj[i, 0] <= -gap + 1e-12:
-                    D[i] = np.inf
-
-        # dD/da
-        # dDda_self = - np.dot(np.expand_dims(np.dot(A.transpose(), sigD**(-2)*dsigD),axis=1), np.expand_dims(ds, axis=0)) \
-        #        - np.dot(np.dot(A.transpose(), np.diag(sigD**(-2)*dsigD)), np.dot(A, a_self - a_other))
-        dDda_self = - 2 * C.EXPCOLLISION * np.dot(A.transpose(), (s_self_traj - s_other_traj) *
-                                                  np.expand_dims(
-                                                      np.exp(C.EXPCOLLISION * (-D + C.CAR_LENGTH ** 2 * 1.5)),
-                                                      axis=1))
-
-        # update theta_hat_H
-        w = - dDda_self  # negative gradient direction
-
-        if who == 0:
-            if self.P.BOUND_HUMAN_X is not None:  # intersection
-                w[np.all([s_self_traj[:, 0] <= 1e-12, w[:, 0] <= 1e-12],
-                         axis=0), 0] = 0  # if against wall and push towards the wall, get a reaction force
-                w[np.all([s_self_traj[:, 0] >= -1e-12, w[:, 0] >= -1e-12],
-                         axis=0), 0] = 0  # TODO: these two lines are hard coded for intersection, need to check the interval
-                # print(w)
-            else:  # lane changing
-                w[np.all([s_self_traj[:, 1] <= 1e-12, w[:, 1] <= 1e-12],
-                         axis=0), 1] = 0  # if against wall and push towards the wall, get a reaction force
-                w[np.all([s_self_traj[:, 1] >= 1 - 1e-12, w[:, 1] >= -1e-12],
-                         axis=0), 1] = 0  # TODO: these two lines are hard coded for lane changing
-        else:
-            if self.P.BOUND_HUMAN_X is not None:  # intersection
-                w[np.all([s_self_traj[:, 1] <= 1e-12, w[:, 1] <= 1e-12],
-                         axis=0), 1] = 0  # if against wall and push towards the wall, get a reaction force
-                w[np.all([s_self_traj[:, 1] >= -1e-12, w[:, 1] >= -1e-12],
-                         axis=0), 1] = 0  # TODO: these two lines are hard coded for intersection, need to check the interval
-            else:  # lane changing
-                w[np.all([s_self_traj[:, 0] <= 1e-12, w[:, 0] <= 1e-12],
-                         axis=0), 0] = 0  # if against wall and push towards the wall, get a reaction force
-                w[np.all([s_self_traj[:, 0] >= -1e-12, w[:, 0] >= -1e-12],
-                         axis=0), 0] = 0  # TODO: these two lines are hard coded for lane changing
-        w = -w
-
-        # calculate best alpha for the enumeration of trajectory
-
-        if who == 1:
-            l = np.array([- C.EXPTHETA * np.exp(C.EXPTHETA * (-s_self_traj[-1][0] + 0.4)), 0.])
-            # don't take into account the time steps where one car has already passed
-            decay = (((s_self_traj - s_other_traj)[:, 0] < gap) + 0.0) * (
-            (s_self_traj - s_other_traj)[:, 1] < gap + 0.0)
-        else:
-            l = np.array([0., C.EXPTHETA * np.exp(C.EXPTHETA * (s_self_traj[-1][1] + 0.4))])
-            decay = (((s_other_traj - s_self_traj)[:, 0] < gap) + 0.0) * (
-            (s_other_traj - s_self_traj)[:, 1] < gap + 0.0)
-        decay = decay * np.exp(np.linspace(0, -10, C.ACTION_TIMESTEPS))
-        w = w * np.expand_dims(decay, axis=1)
-        l = l * np.expand_dims(decay, axis=1)
-        alpha = np.max((- np.trace(np.dot(np.transpose(w), l)) / (np.sum(l ** 2) + 1e-12), 0.1))
-
-        # if who == 0:
-        # alpha = 1.
-
-        x = w + alpha * l
-        L = np.sum(x ** 2)
-        return L, alpha
-
-    def interpolate_from_trajectory(self, trajectory):
-
-        nodes = np.array([[0, trajectory[0] * np.cos(np.deg2rad(trajectory[1])) / 2,
-                           trajectory[0] * np.cos(np.deg2rad(trajectory[1]))],
-                          [0, trajectory[0] * np.sin(np.deg2rad(trajectory[1])) / 2,
-                           trajectory[0] * np.sin(np.deg2rad(trajectory[1]))]])
-        # print nodes
-        curve = bezier.Curve(nodes, degree=2)
-
-        positions = np.transpose(curve.evaluate_multi(np.linspace(0, 1, C.ACTION_NUMPOINTS + 1)))
-        # TODO: skip state?
-        return np.diff(positions, n=1, axis=0)
+    # def interpolate_from_trajectory(self, trajectory):
+    #
+    #     nodes = np.array([[0, trajectory[0] * np.cos(np.deg2rad(trajectory[1])) / 2,
+    #                        trajectory[0] * np.cos(np.deg2rad(trajectory[1]))],
+    #                       [0, trajectory[0] * np.sin(np.deg2rad(trajectory[1])) / 2,
+    #                        trajectory[0] * np.sin(np.deg2rad(trajectory[1]))]])
+    #     # print nodes
+    #     curve = bezier.Curve(nodes, degree=2)
+    #
+    #     positions = np.transpose(curve.evaluate_multi(np.linspace(0, 1, C.ACTION_NUMPOINTS + 1)))
+    #     # TODO: skip state?
+    #     return np.diff(positions, n=1, axis=0)
 
     def dynamic(self, action_self): # Dynamic of cubic polynomial on velocity
          ability = self.P_CAR.ABILITY
@@ -1877,6 +1915,7 @@ class AutonomousVehicle:
              vely = np.clip(vely, -C.PARAMETERSET_2.VEHICLE_MAX_SPEED, 0)
              velx = np.clip(velx, 0, 0)
          predict_result_vel = np.column_stack((velx, vely))
+         #print("velocity", velx, vely)
          A = np.zeros([N, N])
          A[np.tril_indices(N, 0)] = 1
          predict_result_traj = np.matmul(A, predict_result_vel) + state_0

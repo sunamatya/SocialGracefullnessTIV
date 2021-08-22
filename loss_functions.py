@@ -2,7 +2,7 @@ from numpy.core.multiarray import ndarray
 
 from constants import CONSTANTS as C
 from constants import MATRICES as M
-import bezier
+#import bezier
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -560,19 +560,19 @@ class LossFunctions:
         L = np.sum(x ** 2)
         return L, alpha
 
-    def interpolate_from_trajectory(self, trajectory):
-
-        nodes = np.array([[0, trajectory[0] * np.cos(np.deg2rad(trajectory[1])) / 2,
-                           trajectory[0] * np.cos(np.deg2rad(trajectory[1]))],
-                          [0, trajectory[0] * np.sin(np.deg2rad(trajectory[1])) / 2,
-                           trajectory[0] * np.sin(np.deg2rad(trajectory[1]))]])
-
-        curve = bezier.Curve(nodes, degree=2)
-
-        positions = np.transpose(curve.evaluate_multi(np.linspace(0, 1, C.ACTION_NUMPOINTS + 1)))
-        # TODO: skip state?
-
-        return np.diff(positions, n=1, axis=0)
+    # def interpolate_from_trajectory(self, trajectory):
+    #
+    #     nodes = np.array([[0, trajectory[0] * np.cos(np.deg2rad(trajectory[1])) / 2,
+    #                        trajectory[0] * np.cos(np.deg2rad(trajectory[1]))],
+    #                       [0, trajectory[0] * np.sin(np.deg2rad(trajectory[1])) / 2,
+    #                        trajectory[0] * np.sin(np.deg2rad(trajectory[1]))]])
+    #
+    #     curve = bezier.Curve(nodes, degree=2)
+    #
+    #     positions = np.transpose(curve.evaluate_multi(np.linspace(0, 1, C.ACTION_NUMPOINTS + 1)))
+    #     # TODO: skip state?
+    #
+    #     return np.diff(positions, n=1, axis=0)
 
     # def dynamic(self, action_self, vel_self, acc_self, state_self): # Dynamic with Quintic Polynomial Planning
     #     N = 100  # ??

@@ -129,12 +129,21 @@ class Main():
                 counter+= 1
                 print("counter" , counter )
 
-                # calculate gracefulness
+                # calculate gracefulness old
                 # grace = []
                 # for wanted_trajectory_other in self.car_2.wanted_trajectory_other:
                 #     wanted_actions_other = self.car_2.dynamic(wanted_trajectory_other)
                 #     grace.append(1000*(self.car_1.states[-1][0] - wanted_actions_other[0][0]) ** 2)
                 # self.car_1.social_gracefulness.append(sum(grace*self.car_2.inference_probability))
+
+                grace = []
+                for wanted_trajectory_other in self.car_2.wanted_trajectory_other:
+                    wanted_actions_other = self.car_2.dynamic(wanted_trajectory_other)
+                    grace.append(1000*(self.car_1.states[-1][0] - wanted_actions_other[0][0]) ** 2)
+                self.car_1.social_gracefulness.append(sum(grace*self.car_2.wanted_inference_probability))
+
+                #self.wanted_inference_probability
+
 
                 #calculate instant loss
                 import numpy as np

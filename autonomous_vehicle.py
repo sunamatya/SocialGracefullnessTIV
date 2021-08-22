@@ -85,6 +85,8 @@ class AutonomousVehicle:
         self.predicted_trajectory_self = []
         self.joint_probability_matrix = np.array((2, 2))
         self.planned_trajectory= []
+        self.wanted_inference_probability =[]
+        self.skip_update = False
 
     def get_state(self, delay):
         return self.states[-1 * delay]
@@ -108,9 +110,10 @@ class AutonomousVehicle:
             self.track_back = min(C.TRACK_BACK, len(self.states))
             #this is inference
             theta_other, theta_self, predicted_trajectory_other, predicted_others_prediction_of_my_trajectory, \
-            wanted_others_prediction_of_my_trajectory, other_wanted_trajectory, inference_probability, theta_probability, joint_probability_matrix = \
-                self.get_predicted_intent_of_other()
+            wanted_others_prediction_of_my_trajectory, other_wanted_trajectory, inference_probability, theta_probability, \
+            joint_probability_matrix, wanted_inference_probability = self.get_predicted_intent_of_other()
             self.joint_probability_matrix = joint_probability_matrix
+            self.wanted_inference_probability = wanted_inference_probability
             self.wanted_trajectory_self = wanted_others_prediction_of_my_trajectory
             self.wanted_trajectory_other = other_wanted_trajectory
             self.wanted_states_other = [self.dynamic(other_wanted_trajectory[i]) for i in range(len(other_wanted_trajectory))]
@@ -140,6 +143,7 @@ class AutonomousVehicle:
             print("planned_trajectory", planned_trajectory)
 
             planned_actions[np.where(np.abs(planned_actions) < 1e-6)] = 0.  # remove numerical errors
+            self.skip_update = False
             #self.predicted_trajectory_self = self.dynamic()
         else:
             planned_trajectory, planned_actions, _ = self.get_actions_and_loss()
@@ -150,6 +154,8 @@ class AutonomousVehicle:
             predicted_trajectory_other = self.predicted_trajectory_set_other[-1]
             predicted_actions_other = [self.dynamic(predicted_trajectory_other[i])
                                             for i in range(len(predicted_trajectory_other))]
+
+            self.skip_update = True
             # if len(self.temp_action_set_other) == 2:
             #     predicted_actions_other = [self.temp_action_set_other[0][1:], self.temp_action_set_other[1][1:]]
             # else:
@@ -724,6 +730,7 @@ class AutonomousVehicle:
         inference_set = []  # T0poODO: need to generalize
         loss_value_set = []
         action_set = []
+        wanted_action_set = []
 
         if s.inference_style == "empathetic" :
             for theta_self in trials_theta:
@@ -832,6 +839,9 @@ class AutonomousVehicle:
 
                     for i in range(len(other_trajectory)):
                         action_set.append([theta_self, theta_other, other_trajectory[i], 1./len(other_trajectory)])
+
+                    for j in range(len(other_trajectory_wanted)):
+                        wanted_action_set.append([theta_self, theta_other, other_trajectory_wanted[j], 1./len(other_trajectory_wanted)])
 
                     loss_value_set.append(round(fun*1e12)/1e12)
 
@@ -1083,6 +1093,7 @@ class AutonomousVehicle:
         # print(action_inf_probability)
 
         #########or
+        #################trajectory other out############# \hat\xi_j
         action_inf_probability = 0
         trajectory_inf_out = {}
         for i in range(len(posterior_joint_probability_out)):
@@ -1095,10 +1106,13 @@ class AutonomousVehicle:
                     else:
                         trajectory_inf_out[action_set[j][2][0]] = action_inf_probability
 
-        print("trajectory = ", trajectory_inf_out.keys())
+        print("trajectory other= ", trajectory_inf_out.keys())
         print("probability = ", trajectory_inf_out.values())
+
         trajectory_other_out =[]
+        other_trajectory_wanted_out = []
         inference_probability_out = []
+        wanted_inference_probability_out = []
 
         #trajectory_other_out = trajectory_inf_out.keys()
         #inference_probability_out = trajectory_inf_out.values()
@@ -1111,6 +1125,37 @@ class AutonomousVehicle:
             print(key, value)
 
         inference_probability_out = np.array(inference_probability_out)
+
+
+        print("wanted action set", wanted_action_set)
+        action_wanted_inf_probability = 0
+        trajectory_wanted_inf_out = {}
+        for i in range(len(posterior_joint_probability_out)):
+            for j in range(len(wanted_action_set)):
+                theta_combination = [wanted_action_set[j][0], wanted_action_set[j][1]]
+                if (theta_combination == valid_combinations[i]):
+                    action_wanted_inf_probability = wanted_action_set[j][3] * posterior_joint_probability_out[i]
+                    if wanted_action_set[j][2][0] in trajectory_wanted_inf_out.keys():
+                        trajectory_wanted_inf_out[wanted_action_set[j][2][0]]+= action_wanted_inf_probability
+                    else:
+                        trajectory_wanted_inf_out[wanted_action_set[j][2][0]] = action_wanted_inf_probability
+
+        print("trajectory wanted other= ", trajectory_wanted_inf_out.keys())
+        print("probability wanted other = ", trajectory_wanted_inf_out.values())
+
+        for key, value in trajectory_wanted_inf_out.items():
+            vehicle_id = wanted_action_set[0][2][1]
+            if value != 0:
+                other_trajectory_wanted_out.append(np.array([key, vehicle_id]))
+                wanted_inference_probability_out.append(value)
+
+            print(key, value)
+
+        wanted_inference_probability_out = np.array(wanted_inference_probability_out)
+
+        # trajectory_self_out = []
+        # trajectory_self_wanted_other_out= []
+
         # trajectory_inf_out.keys()
         # dict_keys([3.0, 0.0])
         # trajectory_inf_out.values()
@@ -1150,7 +1195,7 @@ class AutonomousVehicle:
 
         return theta_other_out, theta_self_out, trajectory_other_out, trajectory_self_out, \
                trajectory_self_wanted_other_out, other_trajectory_wanted_out, inference_probability_out, \
-               theta_probability, joint_probability_matrix
+               theta_probability, joint_probability_matrix, wanted_inference_probability_out
 
 
     def multi_search_intent_tiv(self):
@@ -1877,6 +1922,8 @@ class AutonomousVehicle:
          else:
              vely = np.clip(vely, -C.PARAMETERSET_2.VEHICLE_MAX_SPEED, 0)
              velx = np.clip(velx, 0, 0)
+
+         #print("velocity", velx, vely)
          predict_result_vel = np.column_stack((velx, vely))
          A = np.zeros([N, N])
          A[np.tril_indices(N, 0)] = 1

@@ -144,7 +144,53 @@ class CONSTANTS:
                               DESIRED_POSITION=np.array([0, -0.4]),
                               BOUND_X=np.array([-0.4, 0.4]),
                               BOUND_Y=None,
-                              INTENT= 1e6,#1
+                              INTENT= 1e6,
+                              COMMON_THETA=np.array([0., -90]),
+                              ORIENTATION=-90,
+                              # ABILITY=1,
+                              # ABILITY_O=1)
+                              ABILITY=0.002,
+                              ABILITY_O=0.002)
+
+    class PARAMETERSET_3: #original
+
+        # DISPLAY
+        SCREEN_WIDTH = 5
+        SCREEN_HEIGHT = 5
+
+        # BOUNDS
+        BOUND_HUMAN_X = np.array([-0.4, 0.4])
+        BOUND_HUMAN_Y = None
+
+        BOUND_MACHINE_X = None
+        BOUND_MACHINE_Y = np.array([-0.4, 0.4])
+
+        # COLLISION BOXES
+        COLLISION_BOXES = np.array([(-0.4, 0.4, -0.4, 0.4)])  # List of separate collision boxes (-x, x, -y, y)
+        VEHICLE_MAX_SPEED = 0.05
+        INITIAL_SPEED = 0.025
+
+        # Left Car
+        CAR_1 = CarParameters(SPRITE="grey_car_sized.png",
+                              INITIAL_POSITION=np.array([-2.0, 0]),
+                              DESIRED_POSITION=np.array([0.4, 0]),
+                              BOUND_X=None,
+                              BOUND_Y=np.array([-0.4, 0.4]),
+                              INTENT= 1,
+                              COMMON_THETA=np.array([0., 0]),
+                              ORIENTATION=0,
+                              # ABILITY=1,
+                              # ABILITY_O=1)
+                              ABILITY=0.002,
+                              ABILITY_O=0.002)
+
+        # Right Car
+        CAR_2 = CarParameters(SPRITE="white_car_sized.png",
+                              INITIAL_POSITION=np.array([0, 2.0]),
+                              DESIRED_POSITION=np.array([0, -0.4]),
+                              BOUND_X=np.array([-0.4, 0.4]),
+                              BOUND_Y=None,
+                              INTENT=1e6,
                               COMMON_THETA=np.array([0., -90]),
                               ORIENTATION=-90,
                               # ABILITY=1,
