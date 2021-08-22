@@ -68,9 +68,11 @@ class AutonomousVehicle:
         self.wanted_trajectory_other = [] # what I want other to do
         self.wanted_states_other = []
         if self.P_CAR.INTENT == 1:
-            self.inference_probability = [1, 0]  # probability density of the inference vectors
+            #self.inference_probability = [1, 0]  # probability density of the inference vectors
+            self.inference_probability = []
         else:
-            self.inference_probability = [0, 1]  # probability density of the inference vectors
+            #self.inference_probability = [0, 1]  # probability density of the inference vectors
+            self.inference_probability = []
 
         self.inference_probability_proactive = [] # for proactive and socially aware actions
         self.theta_probability = np.ones(C.THETA_SET.shape)/C.THETA_SET.size
