@@ -80,24 +80,25 @@ class Sim_Draw():
         if not car_num_display:  # If Car 1
             # Draw predicted state of other
             state_range = []
-            for t in range(len(sim_data.car1_predicted_actions_other[frame])):
-                state_range.append(self.c2p((sim_data.car1_predicted_actions_other[frame][t][-1]-sim_data.car2_states[frame])*0.7+sim_data.car2_states[frame]))
-                # for i in range(len(sim_data.car1_predicted_actions_other[frame][t])):
-                #     state = sim_data.car2_states[frame] + \
-                #             np.sum(sim_data.car1_predicted_actions_other[frame][t][:i+1], axis=0)*0.7
-                #     state_range.append(self.c2p(state))
-            state_range_unique, index, counts = \
-                np.unique(state_range, axis=0, return_index=True, return_counts=True)
-            probability = np.zeros(len(state_range_unique))
-            for i in range(len(state_range_unique)):
-                for j in range(len(state_range)):
-                    if np.array_equal(state_range[j], state_range_unique[i]):
-                        probability[i] += sim_data.car1_inference_probability_proactive[frame][j]
-                # pg.draw.lines(self.screen, DARK_CAR1, False, [self.c2p(sim_data.car2_states[frame]), state_range_unique[i]], 12)
-                pygame.gfxdraw.filled_circle(self.screen, state_range_unique[i][0], state_range_unique[i][1],
-                               int(probability[i]*36), DARK_CAR1)
-                pygame.gfxdraw.filled_circle(self.screen, state_range_unique[i][0], state_range_unique[i][1],
-                               max(int(probability[i]*36)-4,1), LIGHT_LIGHT_GREY)
+            if (len(sim_data.car1_predicted_actions_other[frame]) != 0):
+                for t in range(len(sim_data.car1_predicted_actions_other[frame])):
+                    state_range.append(self.c2p((sim_data.car1_predicted_actions_other[frame][t][-1]-sim_data.car2_states[frame])*0.7+sim_data.car2_states[frame]))
+                    # for i in range(len(sim_data.car1_predicted_actions_other[frame][t])):
+                    #     state = sim_data.car2_states[frame] + \
+                    #             np.sum(sim_data.car1_predicted_actions_other[frame][t][:i+1], axis=0)*0.7
+                    #     state_range.append(self.c2p(state))
+                state_range_unique, index, counts = \
+                    np.unique(state_range, axis=0, return_index=True, return_counts=True)
+                probability = np.zeros(len(state_range_unique))
+                for i in range(len(state_range_unique)):
+                    for j in range(len(state_range)):
+                        if np.array_equal(state_range[j], state_range_unique[i]):
+                            probability[i] += sim_data.car1_inference_probability_proactive[frame][j]
+                    # pg.draw.lines(self.screen, DARK_CAR1, False, [self.c2p(sim_data.car2_states[frame]), state_range_unique[i]], 12)
+                    pygame.gfxdraw.filled_circle(self.screen, state_range_unique[i][0], state_range_unique[i][1],
+                                   int(probability[i]*36), DARK_CAR1)
+                    pygame.gfxdraw.filled_circle(self.screen, state_range_unique[i][0], state_range_unique[i][1],
+                                   max(int(probability[i]*36)-4,1), LIGHT_LIGHT_GREY)
 
             # Draw prediction state of self
             state_range = []

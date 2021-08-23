@@ -19,6 +19,7 @@ class Main():
         # Setup
         self.duration =100
         self.P = C.PARAMETERSET_2  # Scenario parameters choice
+
         # Time handling
         self.clock = pg.time.Clock()
         self.fps = C.FPS
@@ -119,10 +120,10 @@ class Main():
                             print(skip_update_car1)
 
                     #car 2 threshold
-                    if len(self.car_2.predicted_actions_other) < 2:
-                        if np.abs(self.car_2.predicted_actions_other[0][0][0] - self.car_1.states[-1][0])< 0.001:
-                            skip_update_car2 = True
-                            print(skip_update_car2)
+                    # if len(self.car_2.predicted_actions_other) < 2:
+                    #     if np.abs(self.car_2.predicted_actions_other[0][0][0] - self.car_1.states[-1][0])< 0.001:
+                    #         skip_update_car2 = True
+                    #         print(skip_update_car2)
 
                 self.car_1.update(self.frame, skip_update_car1)
                 self.car_2.update(self.frame, skip_update_car2)
@@ -151,9 +152,13 @@ class Main():
                 #calculate instant loss
                 import numpy as np
                 intent_loss_car_1 = self.car_1.intent * np.exp(C.EXPTHETA * (- self.car_1.temp_action_set[C.ACTION_TIMESTEPS-1][0] + 0.6))
-                intent_loss_car_2 = self.car_2.intent * np.exp(C.EXPTHETA * (- self.car_2.temp_action_set[C.ACTION_TIMESTEPS-1][0] + 0.6))
-                D =  np.sqrt(np.sum((np.array(self.car_1.states) - np.array(self.car_2.states))**2)) + 1e-12 # np.sum((my_pos - other_pos)**2, axis=1)
+                intent_loss_car_2 = self.car_2.intent * np.exp(C.EXPTHETA * (self.car_2.temp_action_set[C.ACTION_TIMESTEPS-1][1] + 0.6))
+                #D =  np.sqrt(np.sum((np.array(self.car_1.states) - np.array(self.car_2.states))**2)) + 1e-12 # np.sum((my_pos - other_pos)**2, axis=1)
+                D = np.sqrt(self.car_1.states[-1][0] * self.car_1.states[-1][0] + self.car_2.states[-1][1] * self.car_2.states[-1][1])
                 collision_loss = np.exp(C.EXPCOLLISION * (-D + C.CAR_LENGTH ** 2 * 1.5))
+                #collision_loss =
+
+                #print(collision_loss)
                 plannedloss_car1 = intent_loss_car_1+ collision_loss
                 plannedloss_car2 = intent_loss_car_2+ collision_loss
 
