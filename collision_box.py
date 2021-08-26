@@ -55,6 +55,6 @@ class Collision_Box():
         distance = np.sqrt(distance)
         # collision_loss = np.sum(np.exp(C.EXPCOLLISION * (-distance + C.CAR_LENGTH ** 2 * 1.5)))
         return np.array(distance)
-        # return np.array(collision_loss)
+        # return np.array(collision_loss)s
 
 

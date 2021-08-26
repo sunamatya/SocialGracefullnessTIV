@@ -76,8 +76,8 @@ class AutonomousVehicle:
             self.inference_probability = []
 
         self.inference_probability_proactive = [] # for proactive and socially aware actions
-        #self.theta_probability = np.ones(C.THETA_SET.shape)/C.THETA_SET.size
-        self.theta_probability = np.array([0.8, 0.2])
+        self.theta_probability = np.ones(C.THETA_SET.shape)/C.THETA_SET.size
+        #self.theta_probability = np.array([0.8, 0.2])
         self.social_gracefulness = []  # collect difference between action and what other wants
 
         #inference style

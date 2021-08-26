@@ -109,15 +109,15 @@ class Main():
                 #threhold based calculation
                 #car_2.states(...)- car_1.predictedothers() > distance
                 #car 1 threshold
-                skip_update_car1 = False
+                skip_update_car1 = True
                 skip_update_car2 = False
-                if counter > -1:
-                    # skip_update_car1 = True
-                    # skip_update_car2 = True
-                    if len(self.car_1.predicted_actions_other) < 2:
-                        if np.abs(self.car_1.predicted_actions_other[0][0][1] - self.car_2.states[-1][1]) < 0.001:
-                            skip_update_car1 = True
-                            print(skip_update_car1)
+                # if counter > -1:
+                #     # skip_update_car1 = True
+                #     # skip_update_car2 = True
+                #     if len(self.car_1.predicted_actions_other) < 2:
+                #         if np.abs(self.car_1.predicted_actions_other[0][0][1] - self.car_2.states[-1][1]) < 0.001:
+                #             skip_update_car1 = True
+                #             print(skip_update_car1)
 
                     #car 2 threshold
                     # if len(self.car_2.predicted_actions_other) < 2:
@@ -154,11 +154,14 @@ class Main():
                 intent_loss_car_1 = self.car_1.intent * np.exp(C.EXPTHETA * (- self.car_1.temp_action_set[C.ACTION_TIMESTEPS-1][0] + 0.6))
                 intent_loss_car_2 = self.car_2.intent * np.exp(C.EXPTHETA * (self.car_2.temp_action_set[C.ACTION_TIMESTEPS-1][1] + 0.6))
                 #D =  np.sqrt(np.sum((np.array(self.car_1.states) - np.array(self.car_2.states))**2)) + 1e-12 # np.sum((my_pos - other_pos)**2, axis=1)
-                D = np.sqrt(self.car_1.states[-1][0] * self.car_1.states[-1][0] + self.car_2.states[-1][1] * self.car_2.states[-1][1])
-                collision_loss = np.exp(C.EXPCOLLISION * (-D + C.CAR_LENGTH ** 2 * 1.5))
+                #D = np.sqrt(self.car_1.states[-1][0] * self.car_1.states[-1][0] + self.car_2.states[-1][1] * self.car_2.states[-1][1])
+                predicted_distance = np.sum((self.car_1.temp_action_set - self.car_2.temp_action_set) ** 2, axis=1)
+                D = np.sqrt(predicted_distance)
+                collision_loss = np.sum(np.exp(C.EXPCOLLISION * (-D + C.CAR_LENGTH ** 2 * 1.5)))
                 #collision_loss =
-
-                #print(collision_loss)
+                print(intent_loss_car_1)
+                print(collision_loss)
+                print(intent_loss_car_2)
                 plannedloss_car1 = intent_loss_car_1+ collision_loss
                 plannedloss_car2 = intent_loss_car_2+ collision_loss
 
@@ -191,9 +194,10 @@ class Main():
                                           inference_probability_proactive=self.car_1.inference_probability_proactive,
                                           theta_probability=self.car_1.theta_probability,
                                           social_gracefulness=self.car_1.social_gracefulness,
-                                          planned_loss= plannedloss_car1,
-                                          does_inf = not(skip_update_car1),
-                                          predicted_trajectory_other= self.car_1.predicted_trajectory_set_other)
+                                          planned_loss=plannedloss_car1,
+                                          does_inf=not(skip_update_car1),
+                                          predicted_trajectory_other=self.car_1.predicted_trajectory_set_other,
+                                          collision_loss=collision_loss)
 
                 self.sim_data.append_car2(states=self.car_2.states,
                                           actions=self.car_2.actions_set,
@@ -363,6 +367,7 @@ class Main():
         if self.show_loss:
             car_1_loss = np.empty((0, 1))
             car_2_loss = np.empty((0, 1))
+            car_collision_loss = np.empty((0, 1))
 
             for t in range(self.frame):
                 #def calculate_instanteous_reactive_loss(self, theta_self, trajectory, trajectory_other, s_self, s_other,s, probability):
@@ -370,6 +375,8 @@ class Main():
                 # car_2_instant = calculate_instanteous_reactive_loss()
                 car_1_loss = np.append(car_1_loss, self.sim_data.car1_planned_loss[t])
                 car_2_loss = np.append(car_2_loss, self.sim_data.car2_planned_loss[t])
+                car_collision_loss = np.append(car_collision_loss, self.sim_data.car1_collision_loss[t])
+
                 # car_1_action_predicted = np.append(car_1_action_predicted, np.expand_dims(self.sim_data.car1_predicted_others_prediction_of_my_actions[t], axis=0), axis=0 )
                 # car_2_action_predicted = np.append(car_2_action_predicted, np.expand_dims(self.sim_data.car1_predicted_actions_other[t], axis=0), axis=0 )
             #dist = np.sqrt(car_1_state[:,0] *car_1_state[:,0] + car_2_state[:,1] * car_2_state[:,1])
@@ -378,7 +385,7 @@ class Main():
             # plt.plot(range(1,self.frame+1), car_2_state[:,1], label='car 2 H', linestyle='--')
             # plt.legend()
 
-            fig1, (ax1, ax2) = plt.subplots(2) #3 rows
+            fig1, (ax1, ax2, ax3) = plt.subplots(3) #3 rows
             # fig1.suptitle('Euclidean distance and Agent States')
             # ax1.plot(dist, label='car dist')
             # ax1.legend()
@@ -393,6 +400,11 @@ class Main():
             #ax2.plot(range(1,self.frame+1), car_2_action_predicted[:,0], label='car 1 prediction of car 2 prediction of car 1')
             ax2.legend()
             ax2.set(xlabel='time', ylabel='instant loss')
+
+            ax3.plot(range(1, self.frame + 1), car_collision_loss, label='collision loss')
+            # ax2.plot(range(1,self.frame+1), car_2_action_predicted[:,0], label='car 1 prediction of car 2 prediction of car 1')
+            ax3.legend()
+            ax3.set(xlabel='time', ylabel='collision loss over next 100 timesteps')
             plt.show()
 
         if self.show_does_inference:
