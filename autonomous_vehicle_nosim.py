@@ -858,6 +858,8 @@ class AutonomousVehicle:
                 if s.who == 1:
                     theta_self = s.intent
                 for theta_other in trials_theta_other:
+                    if theta_self != 1:
+                        theta_self = 1e3
                     trajectory_self, trajectory_other, my_loss_all, other_loss_all = self.equilibrium(theta_self,
                                                                                                       theta_other, s,
                                                                                                       s.other_car)
@@ -958,6 +960,13 @@ class AutonomousVehicle:
                                           1. / len(other_trajectory)])  # sunny, it should be from nash equilibrium set
                     #1./len(trajectory_other)*len(trajectory_self_wanted_other)*len(other_trajectory_wanted)])
                                           #1./len(trajectory_other)*len(trajectory_self_wanted_other)*len(other_trajectory_wanted)])
+
+                    for i in range(len(other_trajectory)):
+                        action_set.append([theta_self, theta_other, other_trajectory[i], 1./len(other_trajectory)])
+
+                    for j in range(len(other_trajectory_wanted)):
+                        wanted_action_set.append([theta_self, theta_other, other_trajectory_wanted[j], 1./len(other_trajectory_wanted)])
+
                     loss_value_set.append(round(fun*1e12)/1e12)
 
         print("inference_set", inference_set)

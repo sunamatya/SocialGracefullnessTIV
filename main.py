@@ -39,12 +39,12 @@ class Main():
                                        car_parameters_self=self.P.CAR_1,
                                        loss_style="reactive",
                                        who=1,
-                                       inference_type="empathetic")  #M
+                                       inference_type="non empathetic")  #M
         self.car_2 = AutonomousVehicle(scenario_parameters=self.P,
                                        car_parameters_self=self.P.CAR_2,
                                        loss_style="reactive",
                                        who=0,
-                                       inference_type="empathetic")  #H
+                                       inference_type="non empathetic")  #H
 
         # Assign 'other' cars
         self.car_1.other_car = self.car_2
