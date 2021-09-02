@@ -122,7 +122,10 @@ class CONSTANTS:
         # COLLISION BOXES
         COLLISION_BOXES = np.array([(-0.4, 0.4, -0.4, 0.4)])  # List of separate collision boxes (-x, x, -y, y)
         VEHICLE_MAX_SPEED = 0.05
-        INITIAL_SPEED = 0.025
+        #INITIAL_SPEED = 0.025
+
+        INITIAL_SPEED_1 = 0.025
+        INITIAL_SPEED_2 = 0.025
 
         # Left Car
         CAR_1 = CarParameters(SPRITE="grey_car_sized.png",

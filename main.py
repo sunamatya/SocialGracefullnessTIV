@@ -109,7 +109,7 @@ class Main():
                 #threhold based calculation
                 #car_2.states(...)- car_1.predictedothers() > distance
                 #car 1 threshold
-                skip_update_car1 = True
+                skip_update_car1 = False
                 skip_update_car2 = False
                 # if counter > -1:
                 #     # skip_update_car1 = True

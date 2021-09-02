@@ -1871,7 +1871,8 @@ class AutonomousVehicle:
          if self.who == 1: #if the car who conduct the prediction is car#1
               if action_self[1] == 0: # car#1 predict car#1
                   if len(self.states) == 1: #first state
-                      vel_self = np.array([C.PARAMETERSET_2.INITIAL_SPEED, 0])
+                      #vel_self = np.array([C.PARAMETERSET_2.INITIAL_SPEED, 0])
+                      vel_self = np.array([C.PARAMETERSET_2.INITIAL_SPEED_1, 0])
                       state_0 = np.asarray(self.states[-1])
                       acci = np.array([action_self[0] * ability, 0])
                   else:
@@ -1880,7 +1881,7 @@ class AutonomousVehicle:
                       acci = np.array([action_self[0] * ability, 0])
               else: # car1 predicts car2
                   if len(self.states_o) == 1: # the car dynamic it want to predict
-                      vel_self = np.array([0, -C.PARAMETERSET_2.INITIAL_SPEED])
+                      vel_self = np.array([0, -C.PARAMETERSET_2.INITIAL_SPEED_2])
                       state_0 = np.asarray(self.states_o[-1])
                       acci = np.array([0, -action_self[0] * ability_o])
                   else:
@@ -1890,7 +1891,7 @@ class AutonomousVehicle:
          if self.who == 0: # if it is car 2
               if action_self[1] == 0: # car 2 predict car 1
                   if len(self.states_o) == 1:
-                      vel_self = np.array([C.PARAMETERSET_2.INITIAL_SPEED, 0])
+                      vel_self = np.array([C.PARAMETERSET_2.INITIAL_SPEED_1, 0])
                       state_0 = np.asarray(self.states_o[-1])
                       acci = np.array([action_self[0] * ability, 0])
                   else:
@@ -1899,7 +1900,7 @@ class AutonomousVehicle:
                       acci = np.array([action_self[0] * ability_o, 0])
               else: #car 2 predict car 2
                   if len(self.states) == 1:  # the car dynamic it want to predict
-                      vel_self = np.array([0, -C.PARAMETERSET_2.INITIAL_SPEED])
+                      vel_self = np.array([0, -C.PARAMETERSET_2.INITIAL_SPEED_2])
                       state_0 = np.asarray(self.states[-1])
                       acci = np.array([0, -action_self[0] * ability])
                   else:
