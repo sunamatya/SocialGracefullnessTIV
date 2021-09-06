@@ -39,12 +39,12 @@ class Main():
                                        car_parameters_self=self.P.CAR_1,
                                        loss_style="reactive",
                                        who=1,
-                                       inference_type="non empathetic")  #M
+                                       inference_type="empathetic")  #M
         self.car_2 = AutonomousVehicle(scenario_parameters=self.P,
                                        car_parameters_self=self.P.CAR_2,
                                        loss_style="reactive",
                                        who=0,
-                                       inference_type="non empathetic")  #H
+                                       inference_type="empathetic")  #H
 
         # Assign 'other' cars
         self.car_1.other_car = self.car_2
@@ -197,7 +197,8 @@ class Main():
                                           planned_loss=plannedloss_car1,
                                           does_inf=not(skip_update_car1),
                                           predicted_trajectory_other=self.car_1.predicted_trajectory_set_other,
-                                          collision_loss=collision_loss)
+                                          collision_loss=collision_loss,
+                                          joint_probability_matrix=self.car_1.joint_probability_matrix)
 
                 self.sim_data.append_car2(states=self.car_2.states,
                                           actions=self.car_2.actions_set,
@@ -216,7 +217,8 @@ class Main():
                                           theta_probability=self.car_2.theta_probability,
                                           planned_loss=plannedloss_car2,
                                           does_inf = not(skip_update_car2),
-                                          predicted_trajectory_other= self.car_2.predicted_trajectory_set_other)
+                                          predicted_trajectory_other= self.car_2.predicted_trajectory_set_other,
+                                          joint_probability_matrix=self.car_2.joint_probability_matrix)
 
             if self.frame >= self.duration:
                 break
