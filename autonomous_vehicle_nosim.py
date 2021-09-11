@@ -56,6 +56,7 @@ class AutonomousVehicle:
         self.actions_set_o = []
         self.other_car = []
         self.predicted_trajectory_set_other = []
+        self.percieved_states_o = []
 
         # Initialize prediction_variables
         self.predicted_theta_other = self.P_CAR.INTENT  # consider others as equally aggressive
@@ -738,6 +739,15 @@ class AutonomousVehicle:
         loss_value_set = []
         action_set = []
         wanted_action_set = []
+
+        mu_v, sigma_v = 0, 0.0 #0.005
+        mu_p, sigma_p = 0, 0.05
+        #mu_p, sigma_p = 0, 0.025, 0.0125
+        temp_vel = np.random.normal(mu_v, sigma_v, 1)
+        temp_pos = np.random.normal(mu_p, sigma_p, 1)
+
+        if s.who == 1:
+            s.percieved_states_o.append(s.states_o[-1][1] + temp_pos)
 
         if s.inference_style == "empathetic" :
             for theta_self in trials_theta:
@@ -1863,7 +1873,8 @@ class AutonomousVehicle:
     #     # TODO: skip state?
     #     return np.diff(positions, n=1, axis=0)
 
-    def dynamic(self, action_self): # Dynamic of cubic polynomial on velocity
+    # def dynamic(self, action_self): # Dynamic of cubic polynomial on velocity
+    def dynamic(self, action_self, position_error_other=[0], velocity_error_other=[0], position_error_self = [0], velocity_error_self = [0]):
          ability = self.P_CAR.ABILITY
          ability_o = self.P_CAR.ABILITY_O
 
@@ -1882,11 +1893,24 @@ class AutonomousVehicle:
               else: # car1 predicts car2
                   if len(self.states_o) == 1: # the car dynamic it want to predict
                       vel_self = np.array([0, -C.PARAMETERSET_2.INITIAL_SPEED_2])
-                      state_0 = np.asarray(self.states_o[-1])
+                      #state_0 = np.asarray(self.states_o[-1])
+                      temp_pos = self.states_o[-1][1] - self.percieved_states_o[-1]
+                      position_error_other = temp_pos
+                      temp3 = self.states_o[-1][1] + position_error_other
+                      temp4 = np.array([self.states_o[-1][0], temp3[0]])
+                      state_0 = temp4
                       acci = np.array([0, -action_self[0] * ability_o])
                   else:
-                      vel_self = self.actions_set_o[-1]
-                      state_0 = np.array(self.states_o[-1])
+                      temp = self.actions_set_o[-1][1] + velocity_error_other
+                      temp2 = np.array([self.actions_set_o[-1][0], temp[0]])
+
+                      #temp3 = self.states_o[-1][1] + np.random.normal(mu_p, sigma_p, 1)
+                      temp_pos = self.states_o[-1][1] - self.percieved_states_o[-1]
+                      position_error_other = temp_pos
+                      temp3 = self.states_o[-1][1] + position_error_other
+                      temp4 = np.array([self.states_o[-1][0], temp3[0]])
+                      vel_self = temp2
+                      state_0 = temp4
                       acci = np.array([0, -action_self[0] * ability])
          if self.who == 0: # if it is car 2
               if action_self[1] == 0: # car 2 predict car 1

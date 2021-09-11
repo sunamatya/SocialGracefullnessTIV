@@ -111,13 +111,16 @@ class Main():
                 #car 1 threshold
                 skip_update_car1 = False
                 skip_update_car2 = False
-                # if counter > -1:
-                #     # skip_update_car1 = True
-                #     # skip_update_car2 = True
+                # if counter > 2:
+                #     skip_update_car1 = True
+                #
+                #     skip_update_car1 = True
+                #     skip_update_car2 = True
                 #     if len(self.car_1.predicted_actions_other) < 2:
                 #         if np.abs(self.car_1.predicted_actions_other[0][0][1] - self.car_2.states[-1][1]) < 0.001:
                 #             skip_update_car1 = True
                 #             print(skip_update_car1)
+
 
                     #car 2 threshold
                     # if len(self.car_2.predicted_actions_other) < 2:
@@ -125,6 +128,13 @@ class Main():
                     #         skip_update_car2 = True
                     #         print(skip_update_car2)
 
+                # if counter >0 and counter % 5 == 0:
+                #     if self.P.CAR_2.INTENT == 1:
+                #         self.P.CAR_2.INTENT = 1e6
+                #     else:
+                #         self.P.CAR_2.INTENT = 1
+
+                print("car2 intent", self.P.CAR_2.INTENT)
                 self.car_1.update(self.frame, skip_update_car1)
                 self.car_2.update(self.frame, skip_update_car2)
                 counter+= 1
@@ -198,7 +208,8 @@ class Main():
                                           does_inf=not(skip_update_car1),
                                           predicted_trajectory_other=self.car_1.predicted_trajectory_set_other,
                                           collision_loss=collision_loss,
-                                          joint_probability_matrix=self.car_1.joint_probability_matrix)
+                                          joint_probability_matrix=self.car_1.joint_probability_matrix,
+                                          percieved_state_o= self.car_1.percieved_states_o)
 
                 self.sim_data.append_car2(states=self.car_2.states,
                                           actions=self.car_2.actions_set,
@@ -327,7 +338,8 @@ class Main():
             ax2.legend()
             ax2.set(xlabel='time', ylabel='states')
 
-            ax3.plot(range(1,self.frame+1), car_2_state[:,1], label='car 2 H')
+            ax3.plot(range(1, self.frame+1), car_2_state[:,1], label='car 2 H')
+            ax3.plot(range(0, len(self.sim_data.car1_percieved_state_o)), self.sim_data.car1_percieved_state_o, label='percieved car 2 H')
             ax3.legend()
             ax3.set(xlabel='time', ylabel='states')
             plt.show()
@@ -480,6 +492,7 @@ class Main():
             ax2.legend()
             ax2.set(xlabel='time', ylabel='trajectory')
             plt.show()
+
 
 
 

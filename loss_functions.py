@@ -160,14 +160,25 @@ class LossFunctions:
         #
         # s_ability = s.P_CAR.ABILITY
         # o_ability = o.P_CAR.ABILITY
-        loss_individual = []
+        # loss_individual = []
+        # temp = self.actions_set_o[-1][1] + np.random.normal(mu_v, sigma_v, 1)
+        # # temp = self.actions_set_o[-1][1] + velocity_error_other
+        # temp2 = np.array([self.actions_set_o[-1][0], temp[0]])
+        if s.who == 1:
+            temp_pos = s.states_o[-1][1]-s.percieved_states_o[-1]
+            temp_vel = [0]
+        else:
+            temp_pos = [0]
+            temp_vel = [0]
+
 
         for t_s in trajectory:
             loss = []
             for t_o in trajectory_other:
 
-                s_other_predict, s_other_predict_vel = self.dynamic(t_o, s)
-                s_self_predict, s_self_predict_vel = self.dynamic(t_s, s)
+                #s_other_predict, s_other_predict_vel = self.dynamic(t_o, s)
+                s_other_predict, s_other_predict_vel = self.dynamic(t_o, s, position_error_other= temp_pos, velocity_error_other= temp_vel)
+                s_self_predict, s_self_predict_vel = self.dynamic(t_s, s, position_error_other= temp_pos, velocity_error_other= temp_vel)
 
                 D = box_self.get_collision_loss(s_self_predict, s_other_predict, box_other) + 1e-12
                 gap = 1.05  # TODO: generalize this
@@ -766,7 +777,7 @@ class LossFunctions:
     #      A[np.tril_indices(N, 0)] = 1
     #      predict_result_traj = np.matmul(A, predict_result_vel) + state_0
     #      return predict_result_traj, predict_result_vel
-    def dynamic(self, action_self, s):  # Dynamic of cubic polynomial on velocity
+    def dynamic(self, action_self, s, position_error_other=[0], velocity_error_other=[0], position_error_self=[0], velocity_error_self=[0]):  # Dynamic of cubic polynomial on velocity
         ability = s.P_CAR.ABILITY
         ability_o = s.P_CAR.ABILITY_O
         #N = C.ACTION_TIMESTEPS  # ??
@@ -774,20 +785,71 @@ class LossFunctions:
         T = 1  # ??
         if s.who == 1:  # the car who conduct the prediction
             if action_self[1] == 0:  # the car dynamic it want to predict
-                vel_self = s.actions_set[-1]
-                state_0 = np.asarray(s.states[-1])
+                temp = s.actions_set[-1][0] + velocity_error_self
+                temp2 = np.array([temp[0], s.actions_set[-1][1]])
+
+                # temp3 = self.states_o[-1][1] + np.random.normal(mu_p, sigma_p, 1)
+                temp3 = s.states[-1][0] + position_error_self
+                temp4 = np.array([temp3[0], s.states[-1][1]])
+
+                # vel_self = s.actions_set[-1]
+                # state_0 = np.asarray(s.states[-1])
+                vel_self = temp2
+                state_0 = temp4
                 acci = np.array([action_self[0] * ability, 0])
             else:
-                vel_self = s.actions_set_o[-1]
-                state_0 = np.array(s.states_o[-1])
+                #mu_v, sigma_v = 0, 0.01
+                mu_v, sigma_v = 0, 0#0.0025
+                #mu_p, sigma_p = 0, 0.20
+                mu_p, sigma_p = 0, 0#, 0.050
+                # temp = s.actions_set_o[-1][1] + np.random.normal(mu_v, sigma_v, 1)
+                # temp2 = np.array([s.actions_set_o[-1][0], temp[0]])
+                #
+                # temp3 = s.states_o[-1][1] + np.random.normal(mu_p, sigma_p, 1)
+                # temp4 = np.array([s.states_o[-1][0], temp3[0]])
+
+                # temp = self.actions_set_o[-1][1] + np.random.normal(mu_v, sigma_v, 1)
+                temp = s.actions_set_o[-1][1] + velocity_error_other
+                temp2 = np.array([s.actions_set_o[-1][0], temp[0]])
+
+                # temp3 = self.states_o[-1][1] + np.random.normal(mu_p, sigma_p, 1)
+                temp3 = s.states_o[-1][1] + position_error_other
+                temp4 = np.array([s.states_o[-1][0], temp3[0]])
+                #vel_self = s.actions_set_o[-1]
+                #state_0 = np.array(s.states_o[-1])
+                vel_self = temp2
+                state_0 = temp4
+
                 acci = np.array([0, -action_self[0] * ability_o])
 
         if s.who == 0:
             if action_self[1] == 0:  # the car dynamic it want to predict
+                # temp = s.actions_set_o[-1][0] + velocity_error_other
+                # temp2 = np.array([temp[0], s.actions_set_o[-1][0]])
+                #
+                # # temp3 = self.states_o[-1][1] + np.random.normal(mu_p, sigma_p, 1)
+                # temp3 = s.states_o[-1][0] + position_error_other
+                # temp4 = np.array([temp3[0], s.states_o[-1][0]])
+                # #vel_self = s.actions_set_o[-1]
+                # #state_0 = np.array(s.states_o[-1])
+                # vel_self = temp2
+                # state_0 = temp4
+
                 vel_self = s.actions_set_o[-1]
                 state_0 = np.asarray(s.states_o[-1])
                 acci = np.array([action_self[0] * ability_o, 0])
             else:
+                # temp = s.actions_set[-1][1] + velocity_error_self
+                # temp2 = np.array([s.actions_set[-1][0], temp[0]])
+                #
+                # # temp3 = self.states_o[-1][1] + np.random.normal(mu_p, sigma_p, 1)
+                # temp3 = s.states[-1][1] + position_error_self
+                # temp4 = np.array([s.states[-1][0], temp3[0]])
+                #
+                # # vel_self = s.actions_set[-1]
+                # # state_0 = np.asarray(s.states[-1])
+                # vel_self = temp2
+                # state_0 = temp4
                 vel_self = s.actions_set[-1]
                 state_0 = np.array(s.states[-1])
                 acci = np.array([0, -action_self[0] * ability])

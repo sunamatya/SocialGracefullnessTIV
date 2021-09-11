@@ -100,7 +100,7 @@ class CONSTANTS:
                               DESIRED_POSITION=np.array([3, 0]),  # Maybe change to be further down the road?
                               BOUND_X=None,
                               BOUND_Y=np.array([-0.5, 1.5]),
-                              INTENT=1e3, # agressive to non agressice
+                              INTENT=1e6, # agressive to non agressice
                               COMMON_THETA=np.array([5., 0]),
                               ORIENTATION=0,
                               ABILITY=1.0,#0.02,
@@ -129,7 +129,7 @@ class CONSTANTS:
 
         # Left Car
         CAR_1 = CarParameters(SPRITE="grey_car_sized.png",
-                              INITIAL_POSITION=np.array([-2.0, 0]),
+                              INITIAL_POSITION=np.array([-1.98, 0]),#([-2.0, 0]),
                               DESIRED_POSITION=np.array([0.4, 0]),
                               BOUND_X=None,
                               BOUND_Y=np.array([-0.4, 0.4]),
@@ -143,11 +143,11 @@ class CONSTANTS:
 
         # Right Car
         CAR_2 = CarParameters(SPRITE="white_car_sized.png",
-                              INITIAL_POSITION=np.array([0, 2.0]),
+                              INITIAL_POSITION=np.array([0, 1.78]),#([0, 2.0]),
                               DESIRED_POSITION=np.array([0, -0.4]),
                               BOUND_X=np.array([-0.4, 0.4]),
                               BOUND_Y=None,
-                              INTENT= 1,
+                              INTENT= 1e6,
                               COMMON_THETA=np.array([0., -90]),
                               ORIENTATION=-90,
                               # ABILITY=1,
