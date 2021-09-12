@@ -107,6 +107,18 @@ class AutonomousVehicle:
             self.states_o = np.array(other.states[:-1])  # get other's states
             self.actions_set_o = np.array(other.actions_set[:-1])  # get other's actions
 
+        mu_v, sigma_v = 0, 0.0 #0.005
+        # if (self.frame < 5) or (self.frame>19 and self.frame <25) or (self.frame > 40  and self.frame < 45):
+        #     mu_p, sigma_p = 0, 0.125
+        # else:
+        #     mu_p, sigma_p = 0, 0.0
+        mu_p, sigma_p = 0, 0.0125#, 0.0125
+        temp_vel = np.random.normal(mu_v, sigma_v, 1)
+        temp_pos = np.random.normal(mu_p, sigma_p, 1)
+
+        if self.who == 1:
+            self.percieved_states_o.append(self.states_o[-1][1] + temp_pos)
+
         if not skip_update:
 
             # if len(self.states_o) > C.TRACK_BACK and len(self.states) > C.TRACK_BACK:
@@ -742,14 +754,7 @@ class AutonomousVehicle:
         action_set = []
         wanted_action_set = []
 
-        mu_v, sigma_v = 0, 0.0 #0.005
-        mu_p, sigma_p = 0, 0.05
-        #mu_p, sigma_p = 0, 0.025, 0.0125
-        temp_vel = np.random.normal(mu_v, sigma_v, 1)
-        temp_pos = np.random.normal(mu_p, sigma_p, 1)
 
-        if s.who == 1:
-            s.percieved_states_o.append(s.states_o[-1][1] + temp_pos)
 
         if s.inference_style == "empathetic" :
             for theta_self in trials_theta:
