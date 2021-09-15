@@ -109,10 +109,10 @@ class AutonomousVehicle:
 
         mu_v, sigma_v = 0, 0.0 #0.005
         # if (self.frame < 5) or (self.frame>19 and self.frame <25) or (self.frame > 40  and self.frame < 45):
-        #     mu_p, sigma_p = 0, 0.125
+        #     mu_p, sigma_p = 0, 0.0125
         # else:
         #     mu_p, sigma_p = 0, 0.0
-        mu_p, sigma_p = 0, 0.0125#, 0.0125
+        mu_p, sigma_p = 0, 0 #0.025#, 0.0125
         temp_vel = np.random.normal(mu_v, sigma_v, 1)
         temp_pos = np.random.normal(mu_p, sigma_p, 1)
 

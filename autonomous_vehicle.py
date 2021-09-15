@@ -112,7 +112,7 @@ class AutonomousVehicle:
         #     mu_p, sigma_p = 0, 0.125
         # else:
         #     mu_p, sigma_p = 0, 0.0
-        mu_p, sigma_p = 0, 0.0125#, 0.0125
+        mu_p, sigma_p = 0, 0#.0125#25#, 0.0125
         temp_vel = np.random.normal(mu_v, sigma_v, 1)
         temp_pos = np.random.normal(mu_p, sigma_p, 1)
 
@@ -302,7 +302,11 @@ class AutonomousVehicle:
         #     initial_trajectory_self = self.P_CAR_S.COMMON_THETA
 
         theta_other = self.predicted_theta_other
-        theta_self = self.intent
+        #theta_self = self.intent
+        if self.who == 1:
+            theta_self = C.PARAMETERSET_2.CAR_1.INTENT
+        else:
+            theta_self = C.PARAMETERSET_2.CAR_2.INTENT
         box_other = self.other_car.collision_box
         box_self = self.collision_box
 
@@ -415,7 +419,11 @@ class AutonomousVehicle:
         #     initial_trajectory_self = self.P_CAR_S.COMMON_THETA
 
         theta_other = self.predicted_theta_other
-        theta_self = self.intent
+        #theta_self = self.intent
+        if self.who == 1:
+            theta_self = C.PARAMETERSET_2.CAR_1.INTENT
+        else:
+            theta_self = C.PARAMETERSET_2.CAR_2.INTENT
         box_other = self.other_car.collision_box
         box_self = self.collision_box
 
@@ -514,7 +522,11 @@ class AutonomousVehicle:
     def basic_motion(self):
         s = self
         o = s.other_car
-        theta_self = self.intent
+        #theta_self = self.intent
+        if self.who == 1:
+            theta_self = C.PARAMETERSET_2.CAR_1.INTENT
+        else:
+            theta_self = C.PARAMETERSET_2.CAR_2.INTENT
         # trials_theta = C.THETA_SET
         theta_other = C.THETA_SET[np.argmax(self.theta_probability)]
         trajectory_self, trajectory_other, my_loss_all, other_loss_all = self.equilibrium(theta_self, theta_other, s, o)
@@ -754,6 +766,11 @@ class AutonomousVehicle:
         action_set = []
         wanted_action_set = []
 
+        if s.who == 1:
+            s.intent = C.PARAMETERSET_2.CAR_1.INTENT
+        else:
+            s.intent = C.PARAMETERSET_2.CAR_2.INTENT
+
 
 
         if s.inference_style == "empathetic" :
@@ -872,8 +889,8 @@ class AutonomousVehicle:
         else:
             #for theta_self in trials_theta:
             for theta_self in [s.intent]:
-                if s.who == 1:
-                    theta_self = s.intent
+                # if s.who == 1:
+                #     theta_self = s.intent
                 for theta_other in trials_theta_other:
                     if theta_self != 1:
                         theta_self = 1e3

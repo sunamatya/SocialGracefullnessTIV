@@ -37,7 +37,7 @@ class CONSTANTS:
 
 
     # OPTIMIZATION
-    ACTION_TIMESTEPS = 100  # 5 seconds
+    ACTION_TIMESTEPS = 75#100  # 5 seconds
     ACTION_TURNANGLE = 0  # degrees #TODO: not sure why slsqp does not work with larger angles
     ACTION_NUMPOINTS = 100
 
@@ -58,6 +58,7 @@ class CONSTANTS:
     #np.random.seed(1)
     THETA_SET = np.array([1, 1e3]) #TODO: CHANGE THETA_SET
     TRAJECTORY_SET = np.array([3., 2., 1., 0., -1., -2.])
+    #TRAJECTORY_SET = np.array([5., 4., 3., 2., 1., 0., -1., -2.])
 
     COURTESY_CONSTANT = 0.
 
@@ -129,7 +130,7 @@ class CONSTANTS:
 
         # Left Car
         CAR_1 = CarParameters(SPRITE="grey_car_sized.png",
-                              INITIAL_POSITION=np.array([-1.98, 0]),#([-2.0, 0]),
+                              INITIAL_POSITION=np.array([-3.0, 0]),#([-2.0, 0]),
                               DESIRED_POSITION=np.array([0.4, 0]),
                               BOUND_X=None,
                               BOUND_Y=np.array([-0.4, 0.4]),
@@ -143,7 +144,7 @@ class CONSTANTS:
 
         # Right Car
         CAR_2 = CarParameters(SPRITE="white_car_sized.png",
-                              INITIAL_POSITION=np.array([0, 1.78]),#([0, 2.0]),
+                              INITIAL_POSITION=np.array([0, 3.0]),#([0, 2.0]),
                               DESIRED_POSITION=np.array([0, -0.4]),
                               BOUND_X=np.array([-0.4, 0.4]),
                               BOUND_Y=None,

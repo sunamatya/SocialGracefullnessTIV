@@ -60,7 +60,7 @@ class Main():
             self.sim_draw = Sim_Draw(self.P, C.ASSET_LOCATION)
             pg.display.flip()
             # self.capture = True if input("Capture video (y/n): ") else False
-            self.capture = False
+            self.capture = True
             self.output_data_pickle = False
             output_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
             if self.output_data_pickle or self.capture:
@@ -82,15 +82,18 @@ class Main():
         self.show_loss = True
         self.show_predicted_states_others = True
         self.show_does_inference = True
+        self.intent_container = []
 
         self.trial()
 
     def trial(self):
-        frequency = C.FREQUENCY # frequency every 1/3rd of the time
+        #frequency = C.FREQUENCY # frequency every 1/3rd of the time
+        frequency = 15
         counter = 0
 
         #timing the processing time and resource
         start_timer = timeit.default_timer()
+        intent_container = []
 
 
         while self.running:
@@ -109,6 +112,23 @@ class Main():
                 #threhold based calculation
                 #car_2.states(...)- car_1.predictedothers() > distance
                 #car 1 threshold
+
+                # if counter% frequency == 0 and counter > 1:
+                #     if C.PARAMETERSET_2.CAR_2.INTENT == 1e6:
+                #         C.PARAMETERSET_2.CAR_2.INTENT = 1
+                #     else:
+                #         C.PARAMETERSET_2.CAR_2.INTENT = 1e6
+                # if (self.frame < 5) or (self.frame>19 and self.frame <25) or (self.frame > 40  and self.frame < 45):
+                #     C.PARAMETERSET_2.CAR_2.INTENT = 1e6
+                # else:
+                #     C.PARAMETERSET_2.CAR_2.INTENT = 1
+                if C.PARAMETERSET_2.CAR_2.INTENT == 1e6:
+                    self.intent_container.append(1)
+                else:
+                    self.intent_container.append(0)
+
+
+
                 skip_update_car1 = False
                 skip_update_car2 = False
                 # if counter > 2:
@@ -134,7 +154,7 @@ class Main():
                 #     else:
                 #         self.P.CAR_2.INTENT = 1
 
-                print("car2 intent", self.P.CAR_2.INTENT)
+                print("car2 intent", C.PARAMETERSET_2.CAR_2.INTENT)
                 self.car_1.update(self.frame, skip_update_car1)
                 self.car_2.update(self.frame, skip_update_car2)
                 counter+= 1
@@ -306,6 +326,7 @@ class Main():
             plt.subplot(2, 1, 2)
             plt.plot(range(1,self.frame+1), car_2_theta[:,0], label = "$\hat{\Theta}_H$= 1" )
             plt.plot(range(1,self.frame+1), car_2_theta[:,1], label = "$\hat{\Theta}_H$= 10^3" )
+            plt.plot(self.intent_container, label= "true intent of H = 10^3", alpha=0.5)
             plt.ylabel("$p(\hat{\Theta}_H)$")
             plt.xlabel("frame")
             plt.legend()

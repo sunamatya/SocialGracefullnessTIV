@@ -109,6 +109,11 @@ class LossFunctions:
 
         trajectory_other = s.predicted_trajectory_other
 
+        if s.who == 1:
+            s.intent = C.PARAMETERSET_2.CAR_1.INTENT
+        else:
+            s.intent = C.PARAMETERSET_2.CAR_2.INTENT
+
         # FOR SELF
         trajectory_set = np.empty((0, 2))  # TODO: need to generalize
         loss_value_set = []
